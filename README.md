@@ -6,11 +6,6 @@ Frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 
 ![Alt text](https://preview.ibb.co/eXYvkJ/Schermata_2018_06_17_alle_18_49_07.png "frick")
 
-### WIPWIPWIP
-* improve hexdump performance
-* add more stuffs
-* restart/cleanups command
-* colorize everything
 
 ### Features for the eyes
 * interactive commands with shortcuts 
@@ -24,6 +19,9 @@ Frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 * allow to store vars that can be the result of a command (see examples later)
 * commands arguments evaluation (see examples later)
 * command ``destruct`` should be really helpful while reversing structs (see screenshot later)
+
+##### checkout the [complete commands list](./COMMANDS.md)
+
 
 ### TLDR;
 It will hook all the given targets offsets, sleep the process and give you an interactive cli

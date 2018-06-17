@@ -3,6 +3,29 @@ def get_script(module, offsets):
     js += '''
         var base = 0x0;
         var sleep = false;
+        var cContext = null;
+        var cOff = 0x0;
+        
+        function sendContext() {
+            var context = {};
+            for (var reg in cContext) {
+                var what = cContext[reg];
+                context[reg] = {
+                    'value': what
+                };
+                try {
+                    var rr = Memory.readPointer(what);
+                    context[reg]['sub'] = [rr]
+                    while(true) {
+                        rr = Memory.readPointer(rr);
+                        context[reg]['sub'].push(rr);
+                    }
+                } catch(err) {
+                    continue;
+                }
+            }
+            send('2:::' + cOff + ':::' + JSON.stringify(context));
+        }
         
         function att(off) {
             if (base == 0) {
@@ -11,24 +34,9 @@ def get_script(module, offsets):
             var pt = base.add(off);
             send('1:::' + pt);
             Interceptor.attach(pt, function() {
-                var context = {}
-                for (var reg in this.context) {
-                    var what = this.context[reg];
-                    context[reg] = {
-                        'value': what
-                    };
-                    try {
-                        var rr = Memory.readPointer(what);
-                        context[reg]['sub'] = [rr]
-                        while(true) {
-                            rr = Memory.readPointer(rr);
-                            context[reg]['sub'].push(rr);
-                        }
-                    } catch(err) {
-                        continue;
-                    }
-                }
-                send('2:::' + off + ':::' + JSON.stringify(context));
+                cContext = this.context;
+                cOff = off;
+                sendContext();
                 sleep = true;
                 while(sleep) {
                     Thread.sleep(1);
@@ -82,6 +90,18 @@ def get_script(module, offsets):
                 } catch(err) {
                     return null;
                 }
+            },
+            rw: function(r, v) {
+                try {
+                    console.log(JSON.stringify(cContext));
+                    cContext[r] = v;
+                    return v;
+                } catch(err) {
+                    return null;
+                }
+            },
+            sc: function() {
+                sendContext();
             }
         };
 

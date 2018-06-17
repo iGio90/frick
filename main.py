@@ -598,7 +598,7 @@ class Help(Command):
                 sub_map = {}
                 for s in cmd_info['sub']:
                     sub_map[s['name']] = s
-                    result += self.recursive_help(sub_map, depth + 1)
+                result += self.recursive_help(sub_map, depth + 1)
             if depth == 0:
                 result.append('')
         return result
@@ -608,7 +608,7 @@ class Help(Command):
         st = ''
         for i in range(0, depth):
             st += '    '
-        st += Color.colorify(cmd_name, 'blue bold')
+        st += Color.colorify(cmd_name, 'pink highlight')
         if 'shortcuts' in cmd_info:
             shortcuts = cmd_info['shortcuts']
             st += ' (%s)' % Color.colorify((','.join(shortcuts)), 'green highlight')
@@ -705,6 +705,47 @@ class Print(Command):
             return args[0]
 
 
+class Registers(Command):
+    def get_command_info(self):
+        return {
+            'name': 'registers',
+            'shortcuts': [
+                'r', 'reg', 'regs'
+            ],
+            'info': 'interact with registers',
+            'sub': [
+                {
+                    'name': 'write',
+                    'shortcuts': ['wr', 'w'],
+                    'args': 2,
+                    'info': 'write in register arg0 the value arg1'
+                }
+            ]
+        }
+
+    def __registers__(self, args):
+        try:
+            self.cli.frida_script.exports.sc()
+        except:
+            pass
+
+    def __write__(self, args):
+        reg = args[0].lower()
+        if reg in self.cli.context_manager.get_context():
+            try:
+                what = args[1]
+                if isinstance(what, str):
+                    what = int('0x%s' % what, 16)
+                v = self.cli.frida_script.exports.rw(reg, what)
+                if v is not None:
+                    return '%s (%u)' % (Color.colorify('0x%x' % args[1], 'green highlight'), args[1])
+                else:
+                    return 'failed to write into register %s' % reg
+            except Exception as e:
+                return 'failed to write into register %s - %s' % (reg, e)
+        return '%s - register not found' % (Color.colorify(reg, 'bold'))
+
+
 class Quit(Command):
     def get_command_info(self):
         return {
@@ -725,7 +766,7 @@ class Run(Command):
             'name': 'run',
             'info': 'continue the execution of the process to the next target offset',
             'shortcuts': [
-                'r'
+                'continue', 'cont', 'start', 'go', 'next', 'c'
             ]
         }
 
