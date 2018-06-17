@@ -30,6 +30,37 @@ It will hook all the given targets offsets, sleep the process and give you an in
 which will allow you to do stuffs - including adding other targets - and of course - move to next.
 
 ### Get into the business
+
+```
+# run 
+git clone https://github.com/iGio90/frick
+cd frick
+python main.py
+```
+
+```
+-> frick started - GL HF!
+add 0x017BA150 my pointer 1
+-> 0x17ba150 added to target offsets
+add 0x017BB68C my other target
+-> 0x17bb68c added to target offsets
+add 0x017BB7A8 one more
+-> 0x17bb7a8 added to target offsets
+attach com.package libtarget.so
+-> frida attached
+-> script injected
+-> target arch: arm
+-> target base at 0xc4af2000
+-> attached to 0xc62ac150
+-> attached to 0xc62ad7a8
+-> attached to 0xc62ad68c
+s save
+-> session saved
+
+# next time we run frick, we can just do 's load' 
+# to load the same target and attach the same target
+```
+
 An example of command within the context could be:
 
 ``memory read 0x1000 128``
