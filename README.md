@@ -2,13 +2,11 @@
 
 Frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init gef by @hugsy, with commands design similar to uDdbg.
 
-![Alt text](https://image.ibb.co/kGqSfJ/Schermata_2018_06_17_alle_14_57_25.png "frick")
+![Alt text](https://image.ibb.co/kGqSfJ/Schermata_2018_06_17_alle_14_57_25.png "frick") 
 
 ![Alt text](https://preview.ibb.co/eXYvkJ/Schermata_2018_06_17_alle_18_49_07.png "frick")
 
 ### WIPWIPWIP
-* help command
-* destruct command
 * improve hexdump performance
 * add more stuffs
 * restart/cleanups command
@@ -25,6 +23,7 @@ Frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 * pointer recursion on registers display
 * allow to store vars that can be the result of a command (see examples later)
 * commands arguments evaluation (see examples later)
+* command ``destruct`` should be really helpful while reversing structs (see screenshot later)
 
 ### TLDR;
 It will hook all the given targets offsets, sleep the process and give you an interactive cli
@@ -72,3 +71,9 @@ myptr will now be a value which can be used freely in args:
 ``m r myptr 128``
 
 ``print myptr + $r0 + $r1 << 32``
+
+## Screenies
+
+##### destruct
+
+![Alt text](https://image.ibb.co/iaOgQJ/Schermata_2018_06_17_alle_23_23_06.png "frick")

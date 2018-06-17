@@ -487,6 +487,83 @@ class Attach(Command):
         return None
 
 
+class DeStruct(Command):
+    def get_command_info(self):
+        return {
+            'name': 'destruct',
+            'info': 'read at address arg0 for len arg1 and optional depth arg2',
+            'args': 2,
+            'shortcuts': [
+                'ds', 'des'
+            ]
+        }
+
+    def __destruct__(self, args):
+        depth = 32
+        if len(args) > 2:
+            depth = args[2]
+        if depth % 8 != 0:
+            return 'depth must be multiple of 8'
+        try:
+            data = self.cli.frida_script.exports.mrs(args[0], args[1])
+            result = self._recursive(data, depth)
+            lines = self._get_lines(result, 0)
+            return '\n'.join(lines)
+        except:
+            return None
+
+    def _get_lines(self, arr, depth):
+        result = []
+        while len(arr) > 0:
+            line = ''
+            for i in range(0, depth):
+                line += '    '
+            obj = arr.pop(0)
+            if 'value' in obj:
+                dec = obj['decimal']
+                if dec != 0x0 and dec != 0xfffffff:
+                    line += '%s' % Color.colorify(obj['value'], 'green highlight')
+                else:
+                    line += obj['value']
+                result.append(line)
+            elif 'ptr' in obj:
+                line += Color.colorify(obj['ptr'], 'red highlight')
+                result.append(line)
+                if 'tree' in obj and obj['tree'] is not None:
+                    result += self._get_lines(obj['tree'], depth + 1)
+        return result
+
+    def _recursive(self, data, depth):
+        _struct = []
+        while len(data) > 0:
+            chunk_size = 4
+            if len(data) < chunk_size:
+                break
+            chunk = data[0:chunk_size]
+            i_val = struct.unpack('>L', chunk)[0]
+            if i_val < 255:
+                _struct.append({'value': '0x%s' % (binascii.hexlify(chunk)), 'decimal': i_val})
+            else:
+                val = struct.unpack('<L', data[0:chunk_size])[0]
+                try:
+                    read = depth
+                    if depth < 8:
+                        read = 4
+                    sd = self.cli.frida_script.exports.mrs(val, read)
+                    if sd is not None:
+                        obj = {'ptr': '0x%x' % val}
+                        if depth >= 8:
+                            obj['tree'] = self._recursive(sd, depth / 2)
+                        _struct.append(obj)
+                        data = data[chunk_size:]
+                        continue
+                except:
+                    pass
+                _struct.append({'value': '0x%s' % (binascii.hexlify(chunk)), 'decimal': i_val})
+            data = data[chunk_size:]
+        return _struct
+
+
 class Help(Command):
     def get_command_info(self):
         return {
@@ -732,16 +809,18 @@ class FridaCli(object):
                 ptr_min = 4
                 if len(n) >= ptr_min:
                     try:
-                        ptr = struct.unpack('<L', n[0:4])[0]
-                        if self.frida_script.exports.ivp(ptr):
-                            hexline += '%s' % Color.colorify(b_to_h(n[0:4]).upper(), 'red highlight')
-                            n = n[ptr_min:]
-                            y += 4
-                            if y % 8 == 0:
-                                hexline += '  '
-                            else:
-                                hexline += ' '
-                            continue
+                        i_val = struct.unpack('>L', n[0:4])[0]
+                        if i_val < 255:
+                            ptr = struct.unpack('<L', n[0:4])[0]
+                            if self.frida_script.exports.ivp(ptr):
+                                hexline += '%s' % Color.colorify(b_to_h(n[0:4]).upper(), 'red highlight')
+                                n = n[ptr_min:]
+                                y += 4
+                                if y % 8 == 0:
+                                    hexline += '  '
+                                else:
+                                    hexline += ' '
+                                continue
                     except:
                         pass
                 else:

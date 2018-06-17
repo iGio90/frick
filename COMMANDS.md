@@ -1,14 +1,15 @@
 # Commands list
-|  command  |  short  |                                         info                                         |
-|-----------|---------|--------------------------------------------------------------------------------------|
-|  add      |         |  add offset from base 0x0 in arg0 with optional name for this target following args  |
-|  attach   |  att    |  attach to target package name in arg0 with target module name in arg1               |
-|  help     |  h      |                                                                                      |
-|  memory   |  mem,m  |  memory operations                                                                   |
-|  print    |  p,pr   |                                                                                      |
-|  quit     |  q      |                                                                                      |
-|  run      |  r      |  continue the execution of the process to the next target offset                     |
-|  session  |  s,ss   |                                                                                      |
+|  command   |  short   |                                         info                                         |
+|------------|----------|--------------------------------------------------------------------------------------|
+|  add       |          |  add offset from base 0x0 in arg0 with optional name for this target following args  |
+|  attach    |  att     |  attach to target package name in arg0 with target module name in arg1               |
+|  destruct  |  ds,des  |  read at address arg0 for len arg1 and optional depth arg2                           |
+|  help      |  h       |                                                                                      |
+|  memory    |  mem,m   |  memory operations                                                                   |
+|  print     |  p,pr    |                                                                                      |
+|  quit      |  q       |                                                                                      |
+|  run       |  r       |  continue the execution of the process to the next target offset                     |
+|  session   |  s,ss    |                                                                                      |
 
 ---
 # memory sub commands
