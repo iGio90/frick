@@ -105,4 +105,7 @@ myptr will now be a value which can be used freely in args:
 
 ##### destruct
 
+Read arg1 bytes in pointer arg0. Then, recursively read all the pointers in that range for depth in arg2 (default 32 divided by 2 each recursion until < 8).
+This should be extreme helpful to highlight structures and arrays of objects.
+
 ![Alt text](https://image.ibb.co/iaOgQJ/Schermata_2018_06_17_alle_23_23_06.png "frick")
