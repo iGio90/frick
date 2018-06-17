@@ -24,6 +24,7 @@
 #
 
 import atexit
+import binascii
 import fcntl
 import frida
 import json
@@ -556,7 +557,7 @@ class Memory(Command):
                 {
                     'name': 'read',
                     'args': 2,
-                    'info': 'read memory from address in arg0 for len arg1',
+                    'info': 'read bytes from address in arg0 for len in arg1',
                     'shortcuts': ['rd', 'r'],
                     'sub': [
                         {
@@ -568,6 +569,12 @@ class Memory(Command):
                             ]
                         }
                     ]
+                },
+                {
+                    'name': 'write',
+                    'args': 2,
+                    'info': 'write into address arg0 the bytes in args... (de ad be ef)',
+                    'shortcuts': ['wr', 'w'],
                 }
             ]
         }
@@ -584,6 +591,15 @@ class Memory(Command):
             data = self.cli.frida_script.exports.rp(args[0])
         except Exception as e:
             log('failed to read data from device: %s' % e)
+            return None
+        return data
+
+    def __write__(self, args):
+        try:
+            print(''.join(args[1:]))
+            data = self.cli.frida_script.exports.mw(args[0], ''.join(args[1:]))
+        except Exception as e:
+            log('failed to write data to device: %s' % e)
             return None
         return data
 
@@ -678,7 +694,7 @@ class Session(Command):
 
 class FridaCli(object):
     def __init__(self):
-        #self.frida_device = frida.get_usb_device(5)
+        self.frida_device = frida.get_usb_device(5)
         self.frida_script = None
 
         self.cmd_manager = CommandManager(self)

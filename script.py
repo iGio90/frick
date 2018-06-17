@@ -58,6 +58,16 @@ def get_script(module, offsets):
                     send('3:::' + p, Memory.readByteArray(p, l));
                 } catch(err) {}
             },
+            mw: function(p, w) {
+                try {
+                    p = ptr(p);
+                    Memory.writeByteArray(p, hexToBytes(w));
+                    return p;
+                } catch(err) {
+                    console.log(err)
+                    return null;
+                }
+            },
             rp: function(p) {
                 try {
                     return Memory.readPointer(ptr(p));
@@ -66,6 +76,12 @@ def get_script(module, offsets):
                 }
             }
         };
+
+        function hexToBytes(hex) {
+            for (var bytes = [], c = 0; c < hex.length; c += 2)
+            bytes.push(parseInt(hex.substr(c, 2), 16));
+            return bytes;
+        }
         
         setTimeout(function() {
             base = Process.findModuleByName(module).base;

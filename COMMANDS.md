@@ -12,9 +12,10 @@
 
 ---
 # memory sub commands
-|  command  |  short  |                      info                       |
-|-----------|---------|-------------------------------------------------|
-|  read     |  rd,r   |  read memory from address in arg0 for len arg1  |
+|  command  |  short  |                             info                             |
+|-----------|---------|--------------------------------------------------------------|
+|  read     |  rd,r   |  read bytes from address in arg0 for len in arg1             |
+|  write    |  wr,w   |  write into address arg0 the bytes in args... (de ad be ef)  |
 
 # session sub commands
 |  command  |  short  |                                           info                                           |

@@ -4,6 +4,8 @@ Frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 
 ![Alt text](https://image.ibb.co/kGqSfJ/Schermata_2018_06_17_alle_14_57_25.png "frick")
 
+![Alt text](https://preview.ibb.co/eXYvkJ/Schermata_2018_06_17_alle_18_49_07.png "frick")
+
 ### WIPWIPWIP
 * help command
 * destruct command
