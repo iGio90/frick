@@ -33,7 +33,6 @@ import six
 import struct
 import sys
 import termios
-import unicodedata
 
 import readline as readline
 
@@ -50,7 +49,15 @@ def log(what):
                 what = int(what, 16)
             except:
                 pass
-        print('-> %s' % what)
+        try:
+            what.index('\n')
+            ml = True
+        except:
+            ml = False
+        if not ml:
+            print('-> %s' % what)
+        else:
+            print(what)
         return
 
     t = type(what)
@@ -486,12 +493,61 @@ class Help(Command):
             ]
         }
 
+    def __help__(self, args):
+        if len(args) == 0:
+            self.print_commands_list()
+        else:
+            pass
+
+    def print_commands_list(self):
+        c_map = {}
+        for cmd in self.cli.cmd_manager._map.values():
+            cmd_info = cmd.get_command_info()
+            c_map[cmd_info['name']] = cmd
+        result = self.recursive_help(c_map, 0)
+        log('\n'.join(result))
+
+    def recursive_help(self, cmd_map, depth):
+        result = []
+        for what in sorted(cmd_map):
+            if depth == 0:
+                cmd_info = cmd_map[what].get_command_info()
+            else:
+                cmd_info = cmd_map[what]
+
+            st = self.get_command_help_line(cmd_info, depth)
+            result.append(st)
+            if 'sub' in cmd_info:
+                sub_map = {}
+                for s in cmd_info['sub']:
+                    sub_map[s['name']] = s
+                    result += self.recursive_help(sub_map, depth + 1)
+        return result
+
+    def get_command_help_line(self, cmd_info, depth):
+        cmd_name = cmd_info['name']
+        st = ''
+        for i in range(0, depth):
+            st += '    '
+        st += Color.colorify(cmd_name, 'blue bold')
+        if 'shortcuts' in cmd_info:
+            shortcuts = cmd_info['shortcuts']
+            st += ' (%s)' % Color.colorify((','.join(shortcuts)), 'green highlight')
+        if 'info' in cmd_info:
+            st += '\n'
+            for i in range(0, depth):
+                st += '    '
+            st += '%s' % cmd_info['info']
+
+        return st
+
 
 class Memory(Command):
     def get_command_info(self):
         return {
             'name': 'memory',
             'args': 1,
+            'info': 'memory operations',
             'shortcuts': [
                 'mem', 'm'
             ],
@@ -499,6 +555,7 @@ class Memory(Command):
                 {
                     'name': 'read',
                     'args': 2,
+                    'info': 'read memory in arg0 for len arg1',
                     'shortcuts': ['rd', 'r'],
                     'sub': [
                         {
@@ -553,6 +610,20 @@ class Print(Command):
             return args[0]
 
 
+class Quit(Command):
+    def get_command_info(self):
+        return {
+            'name': 'quit',
+            'args': 0,
+            'shortcuts': [
+                'q'
+            ]
+        }
+
+    def __quit__(self, args):
+        sys.exit()
+
+
 class Run(Command):
     def get_command_info(self):
         return {
@@ -602,7 +673,7 @@ class Session(Command):
 
 class FridaCli(object):
     def __init__(self):
-        self.frida_device = frida.get_usb_device(5)
+        #self.frida_device = frida.get_usb_device(5)
         self.frida_script = None
 
         self.cmd_manager = CommandManager(self)
@@ -610,7 +681,7 @@ class FridaCli(object):
 
     def start(self):
         self.cmd_manager.init()
-        log('frick started - GL HF!')
+        log('%s started - GL HF!' % Color.colorify('frick', 'green highligh'))
 
         readline.parse_and_bind('tab: complete')
         hist = os.path.join(os.environ['HOME'], '.frick_history')
