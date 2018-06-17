@@ -441,6 +441,7 @@ class Add(Command):
     def get_command_info(self):
         return {
             'name': 'add',
+            'info': 'add offset from base 0x0 in arg0 with optional name for this target following args',
             'args': 1
         }
 
@@ -461,6 +462,7 @@ class Attach(Command):
         return {
             'name': 'attach',
             'args': 1,
+            'info': 'attach to target package name in arg0 with target module name in arg1',
             'shortcuts': [
                 'att'
             ]
@@ -494,10 +496,7 @@ class Help(Command):
         }
 
     def __help__(self, args):
-        if len(args) == 0:
-            self.print_commands_list()
-        else:
-            pass
+        self.print_commands_list()
 
     def print_commands_list(self):
         c_map = {}
@@ -555,11 +554,12 @@ class Memory(Command):
                 {
                     'name': 'read',
                     'args': 2,
-                    'info': 'read memory in arg0 for len arg1',
+                    'info': 'read memory from address in arg0 for len arg1',
                     'shortcuts': ['rd', 'r'],
                     'sub': [
                         {
                             'name': 'pointer',
+                            'info': 'read a pointer from address in arg0',
                             'args': 1,
                             'shortcuts': [
                                 'p', 'ptr'
@@ -628,6 +628,7 @@ class Run(Command):
     def get_command_info(self):
         return {
             'name': 'run',
+            'info': 'continue the execution of the process to the next target offset',
             'shortcuts': [
                 'r'
             ]
@@ -649,12 +650,14 @@ class Session(Command):
             'sub': [
                 {
                     'name': 'save',
+                    'info': 'saves current target offsets, package and module to be immediatly executed with \'load\'',
                     'shortcuts': [
                         's', 'sv'
                     ]
                 },
                 {
                     'name': 'load',
+                    'info': 'load session from previously saved information',
                     'shortcuts': [
                         'l', 'ld'
                     ]
