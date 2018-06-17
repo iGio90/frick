@@ -56,7 +56,7 @@ s save
 -> session saved
 
 # next time we run frick, we can just do 's load' 
-# to load the same target and attach the same target
+# to load the same target and attach to the same offset
 ```
 
 An example of command within the context could be:
