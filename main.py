@@ -521,6 +521,8 @@ class Help(Command):
                 for s in cmd_info['sub']:
                     sub_map[s['name']] = s
                     result += self.recursive_help(sub_map, depth + 1)
+            if depth == 0:
+                result.append('')
         return result
 
     def get_command_help_line(self, cmd_info, depth):
@@ -828,6 +830,8 @@ class FridaCli(object):
         else:
             log(message)
 
-global cli
-cli = FridaCli()
-cli.start()
+
+if __name__ == '__main__':
+    global cli
+    cli = FridaCli()
+    cli.start()
