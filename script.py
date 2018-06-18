@@ -148,7 +148,7 @@ def get_script(module, offsets):
         
         setTimeout(function() {
             base = Process.findModuleByName(module).base;
-            send('0:::' + base + ':::' + Process.arch);            
+            send('0:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);            
     '''
     for k, v in offsets.items():
         js += 'att(' + str(k) + ');'

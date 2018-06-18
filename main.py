@@ -254,6 +254,7 @@ class ContextManager(object):
         self._cli = cli
         self.base = 0x0
         self.arch = None
+        self.pointer_size = 0x0
         self.context_offset = 0x0
         self.context = None
         self.target_package = ''
@@ -271,6 +272,9 @@ class ContextManager(object):
         if arch == 'arm':
             self.arch = Arm()
         return self.arch
+
+    def apply_pointer_size(self, pointer_size):
+        self.pointer_size = pointer_size
 
     def clean(self):
         self.target_offsets = {}
@@ -296,6 +300,9 @@ class ContextManager(object):
 
     def get_context_offset(self):
         return self.context_offset
+
+    def get_pointer_size(self):
+        return self.pointer_size
 
     def get_target_offsets(self):
         return self.target_offsets
@@ -506,7 +513,7 @@ class DeStruct(Command):
         }
 
     def __destruct__(self, args):
-        depth = 32
+        depth = self.cli.context_manager.get_pointer_size() * 4
         if len(args) > 2:
             depth = args[2]
         if depth % 8 != 0:
@@ -546,7 +553,7 @@ class DeStruct(Command):
     def _recursive(self, data, depth):
         _struct = []
         while len(data) > 0:
-            chunk_size = 4
+            chunk_size = self.cli.context_manager.get_pointer_size()
             if len(data) < chunk_size:
                 break
             chunk = data[0:chunk_size]
@@ -557,12 +564,12 @@ class DeStruct(Command):
                 val = struct.unpack('<L', data[0:chunk_size])[0]
                 try:
                     read = depth
-                    if depth < 8:
-                        read = 4
+                    if depth < self.cli.context_manager.get_pointer_size() * 2:
+                        read = self.cli.context_manager.get_pointer_size()
                     sd = self.cli.frida_script.exports.mrs(val, read)
                     if sd is not None:
                         obj = {'ptr': '0x%x' % val}
-                        if depth >= 8:
+                        if depth >= self.cli.context_manager.get_pointer_size() * 2:
                             obj['tree'] = self._recursive(sd, depth / 2)
                         _struct.append(obj)
                         data = data[chunk_size:]
@@ -909,7 +916,13 @@ class Session(Command):
 
 class FridaCli(object):
     def __init__(self):
-        self.frida_device = frida.get_usb_device(5)
+        try:
+            self.frida_device = frida.get_usb_device(5)
+            self.frida_device.on('lost', FridaCli.on_device_detached)
+        except:
+            log('remote frida device not found')
+            sys.exit(0)
+
         self.frida_script = None
 
         self.cmd_manager = CommandManager(self)
@@ -944,16 +957,16 @@ class FridaCli(object):
             n = data[0:chunk_size]
             y = 0
             while len(n) > 0:
-                ptr_min = 4
-                if len(n) >= ptr_min:
+                ptr_size = cli.context_manager.get_pointer_size()
+                if len(n) >= ptr_size:
                     try:
-                        i_val = struct.unpack('>L', n[0:4])[0]
+                        i_val = struct.unpack('>L', n[0:ptr_size])[0]
                         if i_val < 255:
-                            ptr = struct.unpack('<L', n[0:4])[0]
+                            ptr = struct.unpack('<L', n[0:ptr_size])[0]
                             if self.frida_script.exports.ivp(ptr):
-                                hexline += '%s' % Color.colorify(b_to_h(n[0:4]).upper(), 'red highlight')
-                                n = n[ptr_min:]
-                                y += 4
+                                hexline += '%s' % Color.colorify(b_to_h(n[0:ptr_size]).upper(), 'red highlight')
+                                n = n[ptr_size:]
+                                y += ptr_size
                                 if y % 8 == 0:
                                     hexline += '  '
                                 else:
@@ -963,14 +976,14 @@ class FridaCli(object):
                         pass
                 else:
                     ptr_min = len(n)
-                var_hex = b_to_h(n[0:ptr_min])
+                var_hex = b_to_h(n[0:ptr_size])
                 var_i = int('0x%s' % ''.join(var_hex.split(' ')), 16)
                 if var_i > 0:
                     hexline += '%s' % Color.colorify(var_hex.upper(), 'green highlight')
                 else:
                     hexline += '%s' % var_hex.upper()
-                n = n[ptr_min:]
-                y += ptr_min
+                n = n[ptr_size:]
+                y += ptr_size
                 if y % 8 == 0:
                     hexline += '  '
                 else:
@@ -1046,6 +1059,8 @@ class FridaCli(object):
                 cli.context_manager.set_base(int(parts[1], 16))
                 if cli.context_manager.apply_arch(parts[2]) is not None:
                     log('target arch: %s' % Color.colorify(parts[2], 'green bold'))
+                cli.context_manager.apply_pointer_size(int(parts[3]))
+                log('pointer size: %s' % Color.colorify(parts[3], 'green bold'))
                 log('target base at %s' % Color.colorify('0x%x' % cli.context_manager.get_base(), 'red highlight'))
             elif id == 1:
                 log('attached to %s' % Color.colorify(parts[1], 'red highlight'))
@@ -1062,6 +1077,11 @@ class FridaCli(object):
                 Thread(target=cli.hexdump, args=(data, offset)).start()
         else:
             log(message)
+
+    @staticmethod
+    def on_device_detached():
+        log('device detached!')
+        cli.frida_script = None
 
 
 if __name__ == '__main__':
