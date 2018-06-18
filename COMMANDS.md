@@ -3,6 +3,7 @@
 |-------------|---------------------------------|-------------------------------------------------------------------------------------|
 |  add        |                                 |  add offset from base 0x0 in arg0 with optional name for this target in other args  |
 |  attach     |  att                            |  attach to target package name in arg0 with target module name in arg1              |
+|  backtrace  |  bt                             |                                                                                     |
 |  destruct   |  des,ds                         |  read at address arg0 for len arg1 and optional depth arg2                          |
 |  find       |  f,fi                           |  utilities to find stuffs                                                           |
 |  help       |  h                              |                                                                                     |

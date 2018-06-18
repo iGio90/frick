@@ -515,6 +515,35 @@ class Attach(Command):
         return None
 
 
+class Backtrace(Command):
+    def get_command_info(self):
+        return {
+            'name': 'backtrace',
+            'info': '',
+            'shortcuts': [
+                'bt'
+            ]
+        }
+
+    def __backtrace__(self, args):
+        if self.cli.context_manager.get_context() is not None:
+            return self.cli.frida_script.exports.bt()
+
+    def __backtrace_result__(self, result):
+        if len(result) > 0:
+            self.cli.context_title('backtrace')
+            for b in result:
+                name = ''
+                if 'name' in b:
+                    name = b['name']
+                    if 'moduleName' in b:
+                        name += ' ' + b['moduleName']
+                print('%s\t%s' % (Color.colorify(b['address'], 'red highlight'), name))
+
+    def __backtrace_store__(self, data):
+        return None
+
+
 class DeStruct(Command):
     def get_command_info(self):
         return {
@@ -623,7 +652,7 @@ class Find(Command):
 
     def __export_result__(self, result):
         if len(result) > 1 and result[1] is not None:
-            FridaCli.context_title(result[0])
+            self.cli.context_title(result[0])
             log(Color.colorify(result[1], 'red highlight'))
 
     def __export_store__(self, data):
@@ -760,7 +789,7 @@ class Info(Command):
         return None
 
     def _print_module(self, module):
-        FridaCli.context_title(module['name'])
+        self.cli.context_title(module['name'])
         print('name: %s\nbase: %s\nsize: %s (%s)' % (Color.colorify(module['name'], 'bold'),
                                                      Color.colorify(module['base'], 'red highlight'),
                                                      Color.colorify('0x%x' % module['size'], 'green highlight'),
@@ -795,7 +824,7 @@ class Info(Command):
         return None
 
     def _print_range(self, range):
-        FridaCli.context_title(range['base'])
+        self.cli.context_title(range['base'])
         print('base: %s\nsize: %s (%s)\nprot: %s' % (Color.colorify(range['base'], 'red highlight'),
                                                      Color.colorify('0x%x' % range['size'], 'green highlight'),
                                                      Color.colorify(str(range['size']), 'bold'),

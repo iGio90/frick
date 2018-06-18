@@ -37,7 +37,7 @@ Something to note:
 The next step would be add shortcuts and subcommands
 
 ```python
-class Add(Command):
+class MyCommand(Command):
     def get_command_info(self):
         return {
             'name': 'mycommand',
@@ -101,9 +101,9 @@ Taking an existing command as example:
             log('failed to read data from device: %s' % e)
             return None
 
-    def __read_result__(self, result):
+    def __read_result__(self, result): # result arg is the result of __read__
         self.cli.hexdump(result[1], result[0])
 
-    def __read_store__(self, data):
-        return data[1]
+    def __read_store__(self, data): # data arg is the result of __read__
+        return data[1] # the actual value that will be stored
 ```

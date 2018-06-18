@@ -48,6 +48,9 @@ def get_script(module, offsets):
             add: function(what) {
                 att(what);
             },
+            bt: function() {
+                return Thread.backtrace(cContext, Backtracer.ACCURATE).map(DebugSymbol.fromAddress);
+            },
             c: function() {
                 sleep = false;
             },
