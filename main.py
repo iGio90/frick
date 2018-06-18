@@ -1081,7 +1081,7 @@ class FridaCli(object):
                 if len(n) >= ptr_size:
                     try:
                         i_val = struct.unpack('>L', n[0:ptr_size])[0]
-                        if i_val < 255:
+                        if i_val > 255:
                             ptr = struct.unpack('<L', n[0:ptr_size])[0]
                             if self.frida_script.exports.ivp(ptr):
                                 hexline += '%s' % Color.colorify(b_to_h(n[0:ptr_size]).upper(), 'red highlight')

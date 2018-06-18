@@ -94,8 +94,7 @@ def get_script(module, offsets):
             },
             ivp: function(p) {
                 try {
-                    var ppt = ptr(p);
-                    Memory.readPointer(ppt);
+                    Memory.readPointer(ptr(p));
                     return true;
                 } catch(err) {
                     return false;
