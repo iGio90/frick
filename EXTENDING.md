@@ -16,7 +16,7 @@ class Command(object):
 here is an example of simple command:
 
 ```python
-class Add(Command):
+class MyCommand(Command):
     def get_command_info(self):
         return {
             'name': 'mycommand',
