@@ -19,7 +19,7 @@ here is an example of simple command:
 class MyCommand(Command):
     def get_command_info(self):
         return {
-            'name': 'mycommand',
+            'name': 'dosomething',
             'info': 'mycommand desc',
             'args': 1 # minimum args
         }
@@ -40,7 +40,7 @@ The next step would be add shortcuts and subcommands
 class MyCommand(Command):
     def get_command_info(self):
         return {
-            'name': 'mycommand',
+            'name': 'dosomething',
             'info': 'mycommand desc',
             'args': 1, # minimum args
             'shortcuts': [

@@ -981,7 +981,7 @@ class Quit(Command):
         }
 
     def __quit__(self, args):
-        sys.exit()
+        sys.exit(0)
 
 
 class Run(Command):
