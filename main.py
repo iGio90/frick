@@ -271,6 +271,7 @@ class ContextManager(object):
     def apply_arch(self, arch):
         if arch == 'arm':
             self.arch = Arm()
+        self.add_value('arch', arch)
         return self.arch
 
     def apply_pointer_size(self, pointer_size):
@@ -283,6 +284,7 @@ class ContextManager(object):
 
     def set_base(self, base):
         self.base = base
+        self.add_value('base', base)
 
     def set_context(self, offset, context):
         self.context_offset = offset
