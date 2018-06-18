@@ -16,6 +16,7 @@ Frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 * save/load previous target offsets and target to attach and work in less then a second
 
 ### Good stuffs
+* the autodoc script deserved to be in the first place of the awesome stuffs
 * custom hexdump highlighting pointers and values
 * pointer recursion on registers display
 * allow to store vars that can be the result of a command (see examples later)
