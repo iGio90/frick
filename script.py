@@ -101,12 +101,6 @@ def get_script(module, offsets):
             mr: function(p, l) {
                 try {
                     p = ptr(p);
-                    send('3:::' + p, Memory.readByteArray(p, l));
-                } catch(err) {}
-            },
-            mrs: function(p, l) {
-                try {
-                    p = ptr(p);
                     return Memory.readByteArray(p, l);
                 } catch(err) {
                     return null;

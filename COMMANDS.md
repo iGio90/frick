@@ -6,6 +6,7 @@
 |  destruct   |  des,ds                         |  read at address arg0 for len arg1 and optional depth arg2                          |
 |  find       |  f,fi                           |  utilities to find stuffs                                                           |
 |  help       |  h                              |                                                                                     |
+|  hexdump    |  hd,hdump                       |  a shortcut to memory read command                                                  |
 |  info       |  i,in                           |  get information about your target                                                  |
 |  memory     |  m,mem                          |  memory operations                                                                  |
 |  print      |  p,pr                           |                                                                                     |

@@ -38,7 +38,6 @@ import termios
 import readline as readline
 
 from pprint import pprint
-from threading import Thread
 
 
 def log(what):
@@ -63,7 +62,10 @@ def log(what):
 
     t = type(what)
     if t is int:
-        print('-> 0x%x (%u)' % (what, what))
+        c = 'green highlight'
+        if cli.frida_script is not None and cli.frida_script.exports.ivp(what):
+            c = 'red highlight'
+        print('-> %s (%s)' % (Color.colorify('0x%x' % what, c), Color.colorify(str(what), 'bold')))
     elif t is unicode:
         print('-> %s' % what.encode('ascii', 'ignore'))
     else:
@@ -119,7 +121,7 @@ class CommandManager(object):
             if len(fm) > 0:
                 tst_method = fm[0]
                 if tst_method in self._map:
-                    val = self.__internal_handle_command(tst_method, fm[1:])
+                    val = self.__internal_handle_command(tst_method, fm[1:], True)
                     if val is None:
                         val = 0
                     self.cli.context_manager.add_value(base, val)
@@ -190,7 +192,7 @@ class CommandManager(object):
         except:
             return what
 
-    def __internal_handle_command(self, base, args):
+    def __internal_handle_command(self, base, args, store=False):
         try:
             command = self._map[base]
         except:
@@ -238,11 +240,18 @@ class CommandManager(object):
             try:
                 data = f_exec(formatted_args)
                 if data is not None:
-                    try:
-                        f_exec = getattr(command, '__%s_result__' % info['name'])
-                        f_exec(data)
-                    except:
-                        pass
+                    if not store:
+                        try:
+                            f_exec = getattr(command, '__%s_result__' % info['name'])
+                            f_exec(data)
+                        except:
+                            pass
+                    else:
+                        try:
+                            f_exec = getattr(command, '__%s_store__' % info['name'])
+                            data = f_exec(data)
+                        except:
+                            pass
                 return data
             except Exception as e:
                 log('error while running command %s: %s' % (info['name'], e))
@@ -524,12 +533,15 @@ class DeStruct(Command):
         if depth % 8 != 0:
             return 'depth must be multiple of 8'
         try:
-            data = self.cli.frida_script.exports.mrs(args[0], args[1])
+            data = self.cli.frida_script.exports.mr(args[0], args[1])
             result = self._recursive(data, depth)
             lines = self._get_lines(result, 0)
             return '\n'.join(lines)
         except:
             return None
+
+    def __destruct_store__(self, data):
+        return None
 
     def __destruct_result__(self, result):
         log(result)
@@ -569,7 +581,7 @@ class DeStruct(Command):
                     read = depth
                     if depth < self.cli.context_manager.get_pointer_size() * 2:
                         read = self.cli.context_manager.get_pointer_size()
-                    sd = self.cli.frida_script.exports.mrs(val, read)
+                    sd = self.cli.frida_script.exports.mr(val, read)
                     if sd is not None:
                         obj = {'ptr': '0x%x' % val}
                         if depth >= self.cli.context_manager.get_pointer_size() * 2:
@@ -613,6 +625,9 @@ class Find(Command):
         if len(result) > 1 and result[1] is not None:
             FridaCli.context_title(result[0])
             log(Color.colorify(result[1], 'red highlight'))
+
+    def __export_store__(self, data):
+        return int(data[1], 16)
 
 
 class Help(Command):
@@ -670,6 +685,27 @@ class Help(Command):
         return st
 
 
+class Hexdump(Command):
+    def get_command_info(self):
+        return {
+            'name': 'hexdump',
+            'args': 2,
+            'shortcuts': [
+                'hd', 'hdump'
+            ],
+            'info': 'a shortcut to memory read command'
+        }
+
+    def __hexdump__(self, args):
+        return Memory(self.cli).__read__(args)
+
+    def __hexdump_result__(self, result):
+        self.cli.hexdump(result[1], result[0])
+
+    def __hexdump_store__(self, data):
+        return None
+
+
 class Info(Command):
     def get_command_info(self):
         return {
@@ -717,6 +753,12 @@ class Info(Command):
             for m in what:
                 self._print_module(m)
 
+    def __modules_store(self, data):
+        data = json.loads(data)
+        if type(data) is dict:
+            return data['base']
+        return None
+
     def _print_module(self, module):
         FridaCli.context_title(module['name'])
         print('name: %s\nbase: %s\nsize: %s (%s)' % (Color.colorify(module['name'], 'bold'),
@@ -745,6 +787,12 @@ class Info(Command):
         else:
             for m in what:
                 self._print_range(m)
+
+    def __ranges_store__(self, data):
+        data = json.loads(data)
+        if type(data) is dict:
+            return data['base']
+        return None
 
     def _print_range(self, range):
         FridaCli.context_title(range['base'])
@@ -793,27 +841,30 @@ class Memory(Command):
 
     def __read__(self, args):
         try:
-            self.cli.frida_script.exports.mr(args[0], args[1])
+            return [args[0], self.cli.frida_script.exports.mr(args[0], args[1])]
         except Exception as e:
             log('failed to read data from device: %s' % e)
-        return None
+            return None
+
+    def __read_result__(self, result):
+        self.cli.hexdump(result[1], result[0])
+
+    def __read_store__(self, data):
+        return data[1]
 
     def __pointer__(self, args):
         try:
-            data = self.cli.frida_script.exports.rp(args[0])
+            return int(self.cli.frida_script.exports.rp(args[0]), 16)
         except Exception as e:
             log('failed to read data from device: %s' % e)
             return None
-        return data
 
     def __write__(self, args):
         try:
-            print(''.join(args[1:]))
-            data = self.cli.frida_script.exports.mw(args[0], ''.join(args[1:]))
+            return int(self.cli.frida_script.exports.mw(args[0], ''.join(args[1:])), 16)
         except Exception as e:
             log('failed to write data to device: %s' % e)
             return None
-        return data
 
 
 class Print(Command):
@@ -838,6 +889,9 @@ class Print(Command):
                 return None
         else:
             return args[0]
+
+    def __print_result__(self, result):
+        log(result)
 
 
 class Registers(Command):
@@ -873,12 +927,18 @@ class Registers(Command):
                     what = int('0x%s' % what, 16)
                 v = self.cli.frida_script.exports.rw(reg, what)
                 if v is not None:
-                    return '%s (%u)' % (Color.colorify('0x%x' % args[1], 'green highlight'), args[1])
+                    return args[1]
                 else:
-                    return 'failed to write into register %s' % reg
+                    print('failed to write into register %s' % reg)
+                    return None
             except Exception as e:
-                return 'failed to write into register %s - %s' % (reg, e)
-        return '%s - register not found' % (Color.colorify(reg, 'bold'))
+                print('failed to write into register %s - %s' % (reg, e))
+                return None
+        print('%s - register not found' % (Color.colorify(reg, 'bold')))
+        return None
+
+    def __write_result__(self, result):
+        print('%s (%u)' % (Color.colorify('0x%x' % result, 'green highlight'), result))
 
 
 class Quit(Command):
@@ -1103,9 +1163,6 @@ class FridaCli(object):
                 else:
                     cli.context_title('0x%x' % (cli.context_manager.get_context_offset()))
                 cli.context_manager.print_context()
-            elif id == 3:
-                offset = int(parts[1], 16)
-                Thread(target=cli.hexdump, args=(data, offset)).start()
         else:
             log(message)
 
