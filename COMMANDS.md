@@ -5,6 +5,7 @@
 |  attach     |  att                            |  attach to target package name in arg0 with target module name in arg1               |
 |  destruct   |  ds,des                         |  read at address arg0 for len arg1 and optional depth arg2                           |
 |  help       |  h                              |                                                                                      |
+|  info       |  i,in                           |  get information about your target                                                   |
 |  memory     |  mem,m                          |  memory operations                                                                   |
 |  print      |  p,pr                           |                                                                                      |
 |  quit       |  q                              |                                                                                      |
@@ -13,6 +14,11 @@
 |  session    |  s,ss                           |                                                                                      |
 
 ---
+# info sub commands
+|  command  |        short         |                         info                         |
+|-----------|----------------------|------------------------------------------------------|
+|  modules  |  module,mod,mo,md,m  |  list all modules or single module in optional arg0  |
+
 # memory sub commands
 |  command  |  short  |                             info                             |
 |-----------|---------|--------------------------------------------------------------|

@@ -238,7 +238,11 @@ class CommandManager(object):
             try:
                 data = f_exec(formatted_args)
                 if data is not None:
-                    log(data)
+                    try:
+                        f_exec = getattr(command, '__%s_result__' % info['name'])
+                        f_exec(data)
+                    except:
+                        pass
                 return data
             except Exception as e:
                 log('error while running command %s: %s' % (info['name'], e))
@@ -453,9 +457,12 @@ class Add(Command):
             for a in args[1:]:
                 name += str(a) + ' '
         self.cli.context_manager.add_target_offset(ptr, name)
-        log('%s added to target offsets' % Color.colorify('0x%x' % ptr, 'red highlight'))
         if self.cli.frida_script is not None:
             self.cli.frida_script.exports.add(ptr)
+        return ptr
+
+    def __add_result__(self, result):
+        log('%s added to target offsets' % Color.colorify('0x%x' % result, 'red highlight'))
 
 
 class Attach(Command):
@@ -511,6 +518,9 @@ class DeStruct(Command):
             return '\n'.join(lines)
         except:
             return None
+
+    def __destruct_result__(self, result):
+        log(result)
 
     def _get_lines(self, arr, depth):
         result = []
@@ -575,6 +585,7 @@ class Help(Command):
 
     def __help__(self, args):
         self.print_commands_list()
+        return None
 
     def print_commands_list(self):
         c_map = {}
@@ -619,6 +630,58 @@ class Help(Command):
             st += '%s' % cmd_info['info']
 
         return st
+
+
+class Info(Command):
+    def get_command_info(self):
+        return {
+            'name': 'info',
+            'args': 1,
+            'info': 'get information about your target',
+            'shortcuts': [
+                'i', 'in'
+            ],
+            'sub': [
+                {
+                    'name': 'modules',
+                    'info': 'list all modules or single module in optional arg0',
+                    'shortcuts': ['module', 'mod', 'mo', 'md', 'm']
+                }
+            ]
+        }
+
+    def __modules__(self, args):
+        if len(args) > 0:
+            what = args[0]
+            try:
+                if isinstance(what, str):
+                    return self.cli.frida_script.exports.fmbn(what)
+                else:
+                    return self.cli.frida_script.exports.fmba(what)
+            except:
+                return None
+        else:
+            try:
+                return self.cli.frida_script.exports.ems()
+            except:
+                return None
+
+    def __modules_result__(self, result):
+        what = json.loads(result)
+        if type(what) is dict:
+            self._print_module(what)
+        else:
+            for m in what:
+                self._print_module(m)
+
+    def _print_module(self, module):
+        FridaCli.context_title(module['name'])
+        print('name: %s\nbase: %s\nsize: %s (%s)' % (Color.colorify(module['name'], 'ping highlight'),
+                                                     Color.colorify(module['base'], 'red highlight'),
+                                                     Color.colorify('0x%x' % module['size'], 'green highlight'),
+                                                     Color.colorify(str(module['size']), 'bold')))
+        if 'file' in module:
+            print('\npath: %s' % module['path'])
 
 
 class Memory(Command):

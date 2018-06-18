@@ -51,6 +51,27 @@ def get_script(module, offsets):
             c: function() {
                 sleep = false;
             },
+            ems: function() {
+                var m = Process.enumerateModulesSync();
+                if (m != null) {
+                    m = JSON.stringify(m);
+                }
+                return m;
+            },
+            fmba: function(w) {
+                var m = Process.findModuleByAddress(ptr(w));
+                if (m != null) {
+                    m = JSON.stringify(m);
+                }
+                return m;
+            },
+            fmbn: function(w) {
+                var m = Process.findModuleByName(w);
+                if (m != null) {
+                    m = JSON.stringify(m);
+                }
+                return m;
+            },
             ivp: function(p) {
                 try {
                     var ppt = ptr(p);

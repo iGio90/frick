@@ -6,6 +6,8 @@ Frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 
 ![Alt text](https://preview.ibb.co/eXYvkJ/Schermata_2018_06_17_alle_18_49_07.png "frick")
 
+![Alt text](https://image.ibb.co/fjSUvJ/Schermata_2018_06_18_alle_11_15_43.png "frick")
+
 
 ### Features for the eyes
 * interactive commands with shortcuts 
@@ -101,7 +103,7 @@ myptr will now be a value which can be used freely in args:
 
 ``print myptr + $r0 + $r1 << 32``
 
-## Screenies
+## Some notes
 
 ##### destruct
 
