@@ -100,6 +100,9 @@ def get_script(module, offsets):
                     return false;
                 }
             },
+            mal: function(l) {
+                return Memory.alloc(l);
+            },
             mr: function(p, l) {
                 try {
                     p = ptr(p);

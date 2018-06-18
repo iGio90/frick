@@ -31,6 +31,7 @@
 # memory sub commands
 |  command  |  short  |                             info                             |
 |-----------|---------|--------------------------------------------------------------|
+|  alloc    |  a,al   |  allocate arg0 size in the heap and return the pointer       |
 |  read     |  rd,r   |  read bytes from address in arg0 for len in arg1             |
 |  write    |  wr,w   |  write into address arg0 the bytes in args... (de ad be ef)  |
 

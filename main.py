@@ -844,6 +844,14 @@ class Memory(Command):
             ],
             'sub': [
                 {
+                    'name': 'alloc',
+                    'args': 1,
+                    'info': 'allocate arg0 size in the heap and return the pointer',
+                    'shortcuts': [
+                        'a', 'al'
+                    ]
+                },
+                {
                     'name': 'read',
                     'args': 2,
                     'info': 'read bytes from address in arg0 for len in arg1',
@@ -868,6 +876,14 @@ class Memory(Command):
             ]
         }
 
+    def __alloc__(self, args):
+        if self.cli.frida_script is not None:
+            return int(self.cli.frida_script.exports.mal(args[0]), 16)
+        return None
+
+    def __alloc_result(self, result):
+        log(result)
+
     def __read__(self, args):
         try:
             return [args[0], self.cli.frida_script.exports.mr(args[0], args[1])]
@@ -887,6 +903,9 @@ class Memory(Command):
         except Exception as e:
             log('failed to read data from device: %s' % e)
             return None
+
+    def __pointer_result__(self, result):
+        log(result)
 
     def __write__(self, args):
         try:
