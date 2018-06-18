@@ -1,23 +1,24 @@
 # Commands list
-|   command   |              short              |                                         info                                         |
-|-------------|---------------------------------|--------------------------------------------------------------------------------------|
-|  add        |                                 |  add offset from base 0x0 in arg0 with optional name for this target following args  |
-|  attach     |  att                            |  attach to target package name in arg0 with target module name in arg1               |
-|  destruct   |  ds,des                         |  read at address arg0 for len arg1 and optional depth arg2                           |
-|  help       |  h                              |                                                                                      |
-|  info       |  i,in                           |  get information about your target                                                   |
-|  memory     |  mem,m                          |  memory operations                                                                   |
-|  print      |  p,pr                           |                                                                                      |
-|  quit       |  q                              |                                                                                      |
-|  registers  |  r,reg,regs                     |  interact with registers                                                             |
-|  run        |  continue,cont,start,go,next,c  |  continue the execution of the process to the next target offset                     |
-|  session    |  s,ss                           |                                                                                      |
+|   command   |              short              |                                        info                                         |
+|-------------|---------------------------------|-------------------------------------------------------------------------------------|
+|  add        |                                 |  add offset from base 0x0 in arg0 with optional name for this target in other args  |
+|  attach     |  att                            |  attach to target package name in arg0 with target module name in arg1              |
+|  destruct   |  ds,des                         |  read at address arg0 for len arg1 and optional depth arg2                          |
+|  help       |  h                              |                                                                                     |
+|  info       |  i,in                           |  get information about your target                                                  |
+|  memory     |  mem,m                          |  memory operations                                                                  |
+|  print      |  p,pr                           |                                                                                     |
+|  quit       |  q                              |                                                                                     |
+|  registers  |  r,reg,regs                     |  interact with registers                                                            |
+|  run        |  continue,cont,start,go,next,c  |  continue the execution of the process to the next target offset                    |
+|  session    |  s,ss                           |                                                                                     |
 
 ---
 # info sub commands
 |  command  |        short         |                         info                         |
 |-----------|----------------------|------------------------------------------------------|
 |  modules  |  module,mod,mo,md,m  |  list all modules or single module in optional arg0  |
+|  ranges   |  range,r,rg          |  list all ranges or single range in optional arg0    |
 
 # memory sub commands
 |  command  |  short  |                             info                             |

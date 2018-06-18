@@ -58,6 +58,13 @@ def get_script(module, offsets):
                 }
                 return m;
             },
+            ers: function() {
+                var m = Process.enumerateRangesSync('---');
+                if (m != null) {
+                    m = JSON.stringify(m);
+                }
+                return m;
+            },
             fmba: function(w) {
                 var m = Process.findModuleByAddress(ptr(w));
                 if (m != null) {
@@ -71,6 +78,13 @@ def get_script(module, offsets):
                     m = JSON.stringify(m);
                 }
                 return m;
+            },
+            frba: function(w) {
+                var m = Process.findRangeByAddress(ptr(w));
+                if (m != null) {
+                    m = JSON.stringify(m);
+                }
+                return m;            
             },
             ivp: function(p) {
                 try {

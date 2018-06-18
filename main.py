@@ -446,7 +446,7 @@ class Add(Command):
     def get_command_info(self):
         return {
             'name': 'add',
-            'info': 'add offset from base 0x0 in arg0 with optional name for this target following args',
+            'info': 'add offset from base 0x0 in arg0 with optional name for this target in other args',
             'args': 1
         }
 
@@ -646,6 +646,11 @@ class Info(Command):
                     'name': 'modules',
                     'info': 'list all modules or single module in optional arg0',
                     'shortcuts': ['module', 'mod', 'mo', 'md', 'm']
+                },
+                {
+                    'name': 'ranges',
+                    'info': 'list all ranges or single range in optional arg0',
+                    'shortcuts': ['range', 'r', 'rg']
                 }
             ]
         }
@@ -676,12 +681,41 @@ class Info(Command):
 
     def _print_module(self, module):
         FridaCli.context_title(module['name'])
-        print('name: %s\nbase: %s\nsize: %s (%s)' % (Color.colorify(module['name'], 'ping highlight'),
+        print('name: %s\nbase: %s\nsize: %s (%s)' % (Color.colorify(module['name'], 'bold'),
                                                      Color.colorify(module['base'], 'red highlight'),
                                                      Color.colorify('0x%x' % module['size'], 'green highlight'),
                                                      Color.colorify(str(module['size']), 'bold')))
-        if 'file' in module:
-            print('\npath: %s' % module['path'])
+        if 'path' in module:
+            print('path: %s' % Color.colorify(module['path'], 'highlight'))
+
+    def __ranges__(self, args):
+        if len(args) > 0:
+            try:
+                return self.cli.frida_script.exports.frba(args[0])
+            except:
+                return None
+        else:
+            try:
+                return self.cli.frida_script.exports.ers()
+            except:
+                return None
+
+    def __ranges_result__(self, result):
+        what = json.loads(result)
+        if type(what) is dict:
+            self._print_range(what)
+        else:
+            for m in what:
+                self._print_range(m)
+
+    def _print_range(self, range):
+        FridaCli.context_title(range['base'])
+        print('base: %s\nsize: %s (%s)\nprot: %s' % (Color.colorify(range['base'], 'red highlight'),
+                                                     Color.colorify('0x%x' % range['size'], 'green highlight'),
+                                                     Color.colorify(str(range['size']), 'bold'),
+                                                     Color.colorify(range['protection'], 'ping highlight')))
+        if 'file' in range:
+            print('\npath: %s' % Color.colorify(range['file']['path'], 'highlight'))
 
 
 class Memory(Command):
