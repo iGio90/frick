@@ -30,7 +30,7 @@ for cmd in sorted(cmds):
     info = ''
     sub = ''
     if 'shortcuts' in cmd_info:
-        st = ','.join(cmd_info['shortcuts'])
+        st = ','.join(sorted(cmd_info['shortcuts']))
     if 'info' in cmd_info:
         info = cmd_info['info']
     if 'sub' in cmd_info:

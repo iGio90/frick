@@ -65,6 +65,9 @@ def get_script(module, offsets):
                 }
                 return m;
             },
+            fexbn: function(a, b) {
+                return Module.findExportByName(a, b);
+            },
             fmba: function(w) {
                 var m = Process.findModuleByAddress(ptr(w));
                 if (m != null) {

@@ -306,6 +306,9 @@ class ContextManager(object):
     def get_pointer_size(self):
         return self.pointer_size
 
+    def get_target_module(self):
+        return self.target_module
+
     def get_target_offsets(self):
         return self.target_offsets
 
@@ -534,9 +537,7 @@ class DeStruct(Command):
     def _get_lines(self, arr, depth):
         result = []
         while len(arr) > 0:
-            line = ''
-            for i in range(0, depth):
-                line += '    '
+            line = '    ' * depth
             obj = arr.pop(0)
             if 'value' in obj:
                 dec = obj['decimal']
@@ -583,6 +584,37 @@ class DeStruct(Command):
         return _struct
 
 
+class Find(Command):
+    def get_command_info(self):
+        return {
+            'name': 'find',
+            'args': 1,
+            'info': 'utilities to find stuffs',
+            'shortcuts': [
+                'f', 'fi'
+            ],
+            'sub': [
+                {
+                    'name': 'export',
+                    'args': 1,
+                    'info': 'find export name arg0 in target module or in optional module arg1',
+                    'shortcuts': ['e', 'ex', 'exp']
+                }
+            ]
+        }
+
+    def __export__(self, args):
+        module = self.cli.context_manager.get_target_module()
+        if len(args) > 1:
+            module = args[1]
+        return [args[0], self.cli.frida_script.exports.fexbn(module, args[0])]
+
+    def __export_result__(self, result):
+        if len(result) > 1 and result[1] is not None:
+            FridaCli.context_title(result[0])
+            log(Color.colorify(result[1], 'red highlight'))
+
+
 class Help(Command):
     def get_command_info(self):
         return {
@@ -625,17 +657,14 @@ class Help(Command):
 
     def get_command_help_line(self, cmd_info, depth):
         cmd_name = cmd_info['name']
-        st = ''
-        for i in range(0, depth):
-            st += '    '
+        st = '    ' * depth
         st += Color.colorify(cmd_name, 'pink highlight')
         if 'shortcuts' in cmd_info:
             shortcuts = cmd_info['shortcuts']
-            st += ' (%s)' % Color.colorify((','.join(shortcuts)), 'green highlight')
+            st += ' (%s)' % Color.colorify((','.join(sorted(shortcuts))), 'green highlight')
         if 'info' in cmd_info:
             st += '\n'
-            for i in range(0, depth):
-                st += '    '
+            st += '    ' * depth
             st += '%s' % cmd_info['info']
 
         return st

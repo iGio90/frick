@@ -3,17 +3,23 @@
 |-------------|---------------------------------|-------------------------------------------------------------------------------------|
 |  add        |                                 |  add offset from base 0x0 in arg0 with optional name for this target in other args  |
 |  attach     |  att                            |  attach to target package name in arg0 with target module name in arg1              |
-|  destruct   |  ds,des                         |  read at address arg0 for len arg1 and optional depth arg2                          |
+|  destruct   |  des,ds                         |  read at address arg0 for len arg1 and optional depth arg2                          |
+|  find       |  f,fi                           |  utilities to find stuffs                                                           |
 |  help       |  h                              |                                                                                     |
 |  info       |  i,in                           |  get information about your target                                                  |
-|  memory     |  mem,m                          |  memory operations                                                                  |
+|  memory     |  m,mem                          |  memory operations                                                                  |
 |  print      |  p,pr                           |                                                                                     |
 |  quit       |  q                              |                                                                                     |
 |  registers  |  r,reg,regs                     |  interact with registers                                                            |
-|  run        |  continue,cont,start,go,next,c  |  continue the execution of the process to the next target offset                    |
+|  run        |  c,cont,continue,go,next,start  |  continue the execution of the process to the next target offset                    |
 |  session    |  s,ss                           |                                                                                     |
 
 ---
+# find sub commands
+|  command  |   short    |                                info                                 |
+|-----------|------------|---------------------------------------------------------------------|
+|  export   |  e,ex,exp  |  find export name arg0 in target module or in optional module arg1  |
+
 # info sub commands
 |  command  |        short         |                         info                         |
 |-----------|----------------------|------------------------------------------------------|
