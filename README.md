@@ -2,7 +2,7 @@
 
 Frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init gef by @hugsy, with commands design similar to uDdbg.
 
-![Alt text](https://image.ibb.co/kGqSfJ/Schermata_2018_06_17_alle_14_57_25.png "frick") 
+![Alt text](https://image.ibb.co/c7GxkJ/Schermata_2018_06_19_alle_17_47_32.png "frick") 
 
 ![Alt text](https://image.ibb.co/d7v70J/Schermata_2018_06_19_alle_02_39_54.png "frick")
 

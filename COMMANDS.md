@@ -5,6 +5,7 @@
 |  attach     |  att                            |  attach to target package name in arg0 with target module name in arg1              |
 |  backtrace  |  bt                             |                                                                                     |
 |  destruct   |  des,ds                         |  read at address arg0 for len arg1 and optional depth arg2                          |
+|  disasm     |  d,dis                          |  disassemble the given hex payload in arg0 or a pointer in arg0 with len in arg1    |
 |  find       |  f,fi                           |  utilities to find stuffs                                                           |
 |  help       |  h                              |                                                                                     |
 |  hexdump    |  hd,hdump                       |  a shortcut to memory read command                                                  |
@@ -16,6 +17,7 @@
 |  registers  |  r,reg,regs                     |  interact with registers                                                            |
 |  run        |  c,cont,continue,go,next,start  |  continue the execution of the process to the next target offset                    |
 |  session    |  s,ss                           |                                                                                     |
+|  set        |                                 |                                                                                     |
 
 ---
 # find sub commands
@@ -48,6 +50,11 @@
 |  load     |  l,ld   |  load session from previously saved information                                          |
 |  save     |  s,sv   |  saves current target offsets, package and module to be immediatly executed with 'load'  |
 
+# set sub commands
+|  command   |  short  |           info            |
+|------------|---------|---------------------------|
+|  capstone  |  cs     |  capstone configurations  |
+
 ---
 # memory read sub commands
 |    command    |            short             |                                          info                                          |
@@ -65,4 +72,10 @@
 |  asciistring  |  asciistr,ascii,acs          |  read ascii string from address in arg0 and optional len in arg1                       |
 |  utf16string  |  utf16str,utf16s,utf16,u16s  |  read utf16 string from address in arg0 and optional len in arg1                       |
 |  utf8string   |  utf8str,utf8s,utf8,u8s      |  read utf8 string from address in arg0 and optional len in arg1                        |
+
+# set capstone sub commands
+|  command  |   short    |              info               |
+|-----------|------------|---------------------------------|
+|  arch     |  a,ar      |  set the capstone arch in arg0  |
+|  mode     |  m,md,mod  |  set the capstone mode in arg0  |
 

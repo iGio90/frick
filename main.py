@@ -25,6 +25,7 @@
 
 import atexit
 import binascii
+import capstone
 import fcntl
 import frida
 import json
@@ -78,11 +79,32 @@ def log(what):
 
 
 class Arch(object):
+    def __init__(self):
+        self.capstone_arch = None
+        self.capstone_mode = None
+
     def get_registers(self):
         return []
 
+    def get_capstone_arch(self):
+        return self.capstone_arch
+
+    def get_capstone_mode(self):
+        return self.capstone_mode
+
+    def set_capstone_arch(self, arch):
+        self.capstone_arch = arch
+
+    def set_capstone_mode(self, mode):
+        self.capstone_mode = mode
+
 
 class Arm(Arch):
+    def __init__(self):
+        super(Arm, self).__init__()
+        self.capstone_arch = capstone.CS_ARCH_ARM
+        self.capstone_mode = capstone.CS_MODE_ARM
+
     def get_registers(self):
         r = []
         for i in range(0, 13):
@@ -219,7 +241,7 @@ class CommandManager(object):
                 try:
                     f_exec = getattr(command, '__%s__' % s_info['name'])
                 except:
-                    break
+                    pass
                 s_args = s_args[1:]
             else:
                 break
@@ -307,6 +329,9 @@ class ContextManager(object):
     def set_target(self, package, module):
         self.target_package = package
         self.target_module = module
+
+    def get_arch(self):
+        return self.arch
 
     def get_base(self):
         return self.base
@@ -515,6 +540,7 @@ class Attach(Command):
         log("script %s" % Color.colorify('injected', 'bold'))
         self.cli.frida_device.resume(package)
         self.cli.frida_script.on('message', self.cli.on_frida_message)
+        self.cli.frida_script.on('destroyed', self.cli.on_frida_script_destroyed)
         self.cli.frida_script.load()
         self.cli.context_manager.set_target(package, module)
         return None
@@ -628,6 +654,56 @@ class DeStruct(Command):
                 _struct.append({'value': '0x%s' % (binascii.hexlify(chunk)), 'decimal': i_val})
             data = data[chunk_size:]
         return _struct
+
+
+class DisAssembler(Command):
+    def get_command_info(self):
+        return {
+            'name': 'disasm',
+            'args': 1,
+            'info': 'disassemble the given hex payload in arg0 or a pointer in arg0 with len in arg1',
+            'shortcuts': [
+                'd', 'dis'
+            ]
+        }
+
+    def __disasm__(self, args):
+        if self.cli.context_manager.get_base() == 0:
+            log('a target attached is needed before using disasm')
+            return None
+
+        if self.cli.context_manager.get_arch() is None:
+            log('this arch is not yet supported :(')
+        else:
+            cs = capstone.Cs(self.cli.context_manager.get_arch().get_capstone_arch(),
+                             self.cli.context_manager.get_arch().get_capstone_mode())
+            if type(args[0]) is str:
+                b = binascii.unhexlify(args[0])
+                off = 0
+                if len(args) > 1:
+                    off = args[1]
+            else:
+                l = 32
+                if len(args) > 1:
+                    l = args[1]
+                b = Memory(self.cli)._internal_read_data_(args[0], l)[1]
+                off = args[0]
+            ret = []
+            for i in cs.disasm(b, off):
+                faddr = '0x%x' % i.address
+                if self.cli.context_manager.get_context() is not None:
+                    pc = int(self.cli.context_manager.get_context()['pc']['value'], 16)
+                    if pc == i.address or pc + 1 == i.address:
+                        faddr = ' ' + Color.colorify(faddr, 'red highlight')
+                ret.append("%s:\t%s\t%s" % (faddr, Color.colorify(i.mnemonic.upper(), 'bold'), i.op_str))
+            return ret
+
+    def __disasm_result__(self, result):
+        self.cli.context_title('disasm')
+        print('\n'.join(result))
+
+    def __disasm_store__(self, data):
+        return None
 
 
 class Find(Command):
@@ -1219,7 +1295,7 @@ class Pack(Command):
                 l += '%s%x' % (c, a)
             elif type(a) is str:
                 l += binascii.hexlify(a)
-        r = [l[i:i+2] for i in range(0, len(l), 2)]
+        r = [l[i:i + 2] for i in range(0, len(l), 2)]
         return ' '.join(r)
 
     def __pack_result__(self, result):
@@ -1364,6 +1440,71 @@ class Session(Command):
         return None
 
 
+class Set(Command):
+    def get_command_info(self):
+        return {
+            'name': 'set',
+            'args': 1,
+            'sub': [
+                {
+                    'name': 'capstone',
+                    'info': 'capstone configurations',
+                    'args': 1,
+                    'shortcuts': [
+                        'cs'
+                    ],
+                    'sub': [
+                        {
+                            'name': 'arch',
+                            'args': 1,
+                            'info': 'set the capstone arch in arg0',
+                            'shortcuts': [
+                                'a', 'ar'
+                            ]
+                        },
+                        {
+                            'name': 'mode',
+                            'args': 1,
+                            'info': 'set the capstone mode in arg0',
+                            'shortcuts': [
+                                'm', 'md', 'mod'
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+
+    def __arch__(self, args):
+        arch_list = [k for k, v in capstone.__dict__.items() if not k.startswith("__") and k.startswith("CS_ARCH")]
+        if type(args[0]) is str:
+            __arch_test = 'CS_ARCH_%s' % args[0].upper()
+            if __arch_test in arch_list:
+                if self.cli.context_manager.get_arch() is not None:
+                    __arch = getattr(capstone, __arch_test)
+                    self.cli.context_manager.get_arch().get_capstone_arch(__arch)
+                    return __arch
+                else:
+                    print('need a target attached before doing this')
+        log('arch not found. use one of:')
+        log(' '.join(sorted(arch_list)).replace('CS_ARCH_', '').lower())
+
+    def __mode__(self, args):
+        mode_list = [k for k, v in capstone.__dict__.items() if not k.startswith("__") and k.startswith("CS_MODE")]
+        if type(args[0]) is str:
+            __mode_test = 'CS_MODE_%s' % args[0].upper()
+            if __mode_test in mode_list:
+                if self.cli.context_manager.get_arch() is not None:
+                    __mode = getattr(capstone, __mode_test)
+                    self.cli.context_manager.get_arch().get_capstone_arch(__mode)
+                    return __mode
+                else:
+                    print('need a target attached before doing this')
+        log('mode not found. use one of:')
+        log(' '.join(sorted(mode_list)).replace('CS_MODE_', '').lower())
+        return None
+
+
 class FridaCli(object):
     def __init__(self):
         try:
@@ -1447,13 +1588,13 @@ class FridaCli(object):
 
             tail = ''
             for i in range(0, chunk_size):
-                char = data[i:i+1]
+                char = data[i:i + 1]
                 if ord(char) < 32 or ord(char) > 126:
                     tail += '.'
                     continue
                 t = ''
                 try:
-                    t = data[i:i+1].decode('ascii')
+                    t = data[i:i + 1].decode('ascii')
                 except:
                     pass
                 if len(t) < 1:
@@ -1522,8 +1663,17 @@ class FridaCli(object):
                 else:
                     cli.context_title('0x%x' % (cli.context_manager.get_context_offset()))
                 cli.context_manager.print_context()
+                dis = DisAssembler(cli)
+                dis.__disasm_result__(dis.__disasm__(
+                    [parts[4].encode('ascii', 'ignore'),
+                     int(cli.context_manager.get_context()['pc']['value'], 16) - 32]))
+                Backtrace(cli).__backtrace_result__(json.loads(parts[3]))
         else:
             log(message)
+
+    @staticmethod
+    def on_frida_script_destroyed():
+        cli.frida_script = None
 
     @staticmethod
     def on_device_detached():

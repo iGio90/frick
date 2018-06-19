@@ -5,7 +5,7 @@ def get_script(module, offsets):
         var sleep = false;
         var cContext = null;
         var cOff = 0x0;
-        
+                
         function sendContext() {
             var context = {};
             for (var reg in cContext) {
@@ -24,7 +24,12 @@ def get_script(module, offsets):
                     continue;
                 }
             }
-            send('2:::' + cOff + ':::' + JSON.stringify(context));
+            var sbt = Thread.backtrace(cContext, Backtracer.ACCURATE).map(DebugSymbol.fromAddress);
+            var tds = []
+            try {
+                tds = Memory.readByteArray(cContext.pc.sub(32), 64);
+            } catch(err) {}
+            send('2:::' + cOff + ':::' + JSON.stringify(context) + ':::' + JSON.stringify(sbt) + ':::' + bytesToHex(tds));
         }
         
         function att(off) {
@@ -180,10 +185,24 @@ def get_script(module, offsets):
 
         function hexToBytes(hex) {
             for (var bytes = [], c = 0; c < hex.length; c += 2)
-            bytes.push(parseInt(hex.substr(c, 2), 16));
+                bytes.push(parseInt(hex.substr(c, 2), 16));
             return bytes;
         }
-        
+
+        function bytesToHex(b) {
+            var uint8arr = new Uint8Array(b);
+            if (!uint8arr) {
+                return '';
+            }
+            var hexStr = '';
+            for (var i = 0; i < uint8arr.length; i++) {
+                var hex = (uint8arr[i] & 0xff).toString(16);
+                hex = (hex.length === 1) ? '0' + hex : hex;
+                hexStr += hex;
+            }
+            return hexStr;
+        }
+                
         setTimeout(function() {
             base = Process.findModuleByName(module).base;
             send('0:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);            
