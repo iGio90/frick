@@ -41,6 +41,7 @@ from pprint import pprint
 
 
 def log(what):
+    apix = Color.colorify('>', 'red highlight')
     if type(what) is str:
         try:
             what = int(what)
@@ -55,7 +56,7 @@ def log(what):
         except:
             ml = False
         if not ml:
-            print('-> %s' % what)
+            print('-%s %s' % (apix, what))
         else:
             print(what)
         return
@@ -69,9 +70,9 @@ def log(what):
             v = hex((what + (1 << 32)) % (1 << 32))
         else:
             v = hex(what)
-        print('-> %s (%s)' % (Color.colorify(v, c), Color.colorify(str(what), 'bold')))
+        print('-%s %s (%s)' % (apix, Color.colorify(v, c), Color.colorify(str(what), 'bold')))
     elif t is six.text_type:
-        print('-> %s' % what.encode('ascii', 'ignore'))
+        print('-%s %s' % (apix, what.encode('ascii', 'ignore')))
     else:
         pprint(what)
 
@@ -1195,6 +1196,33 @@ class Memory(Command):
         except Exception as e:
             log('failed to write data to device: %s' % e)
             return None
+
+
+class Pack(Command):
+    def get_command_info(self):
+        return {
+            'name': 'pack',
+            'args': 1,
+            'info': 'pack value in arg0 to return a string usable with memory write',
+            'shortcuts': [
+                'pa'
+            ]
+        }
+
+    def __pack__(self, args):
+        l = ''
+        for a in args:
+            if type(a) is int:
+                l += '%x' % a
+            elif type(a) is str:
+                l += binascii.hexlify(a)
+        r = [l[i:i+2] for i in range(0, len(l), 2)]
+        if len(r[len(r) - 1]) is 1:
+            r[len(r) - 1] = '0' + r[len(r) - 1]
+        return ' '.join(r)
+
+    def __pack_result__(self, result):
+        log(result)
 
 
 class Print(Command):

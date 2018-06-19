@@ -10,6 +10,7 @@
 |  hexdump    |  hd,hdump                       |  a shortcut to memory read command                                                  |
 |  info       |  i,in                           |  get information about your target                                                  |
 |  memory     |  m,mem                          |  memory operations                                                                  |
+|  pack       |  pa                             |  pack value in arg0 to return a string usable with memory write                     |
 |  print      |  p,pr                           |                                                                                     |
 |  quit       |  q                              |                                                                                     |
 |  registers  |  r,reg,regs                     |  interact with registers                                                            |
