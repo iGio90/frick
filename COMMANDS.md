@@ -8,7 +8,7 @@
 |  disasm     |  d,dis                          |  disassemble the given hex payload in arg0 or a pointer in arg0 with len in arg1    |
 |  find       |  f,fi                           |  utilities to find stuffs                                                           |
 |  help       |  h                              |                                                                                     |
-|  hexdump    |  hd,hdump                       |  a shortcut to memory read command                                                  |
+|  hexdump    |  hd,hdump                       |  hexdump memory regions pointed by value in args for len in the last arg            |
 |  info       |  i,in                           |  get information about your target                                                  |
 |  memory     |  m,mem                          |  memory operations                                                                  |
 |  pack       |  pa                             |  pack value in arg0 to return a string usable with memory write                     |

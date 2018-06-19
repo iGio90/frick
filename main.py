@@ -533,6 +533,7 @@ class Add(Command):
     def __pointer_result__(self, result):
         log('%s added to target offsets' % Color.colorify('0x%x' % result, 'red highlight'))
 
+
 class Attach(Command):
     def get_command_info(self):
         return {
@@ -820,14 +821,46 @@ class Hexdump(Command):
             'shortcuts': [
                 'hd', 'hdump'
             ],
-            'info': 'a shortcut to memory read command'
+            'info': 'hexdump memory regions pointed by value in args for len in the last arg'
         }
 
     def __hexdump__(self, args):
-        return Memory(self.cli).__read__(args)
+        if len(args) == 2:
+            return [Memory(self.cli).__read__(args)]
+        else:
+            l = args[len(args) - 1]
+            dumps = []
+            m = Memory(self.cli)
+            for i in range(0, len(args) - 1):
+                dumps.append(m.__read__([args[i], l]))
+            return dumps
 
     def __hexdump_result__(self, result):
-        self.cli.hexdump(result[1], result[0])
+        if len(result) == 1:
+            self.cli.hexdump(result[0][1], result[0][0])
+        else:
+            row, cols = FridaCli.get_terminal_size()
+            h_rows = []
+            f_rows = []
+            for dump in result:
+                h_rows.append(self.cli.hexdump(dump[1], dump[0], 'return'))
+            h_iter = 0
+            max = cols / 75
+            row = ''
+            while len(h_rows) > 0:
+                if row == '':
+                    row += h_rows[h_iter].pop(0)
+                else:
+                    row += '\t\t' + h_rows[h_iter].pop(0)
+                if len(h_rows[h_iter]) == 0:
+                    h_rows.pop(h_iter)
+                else :
+                    h_iter += 1
+                if h_iter == max or len(h_rows) <= h_iter:
+                    f_rows.append(row)
+                    h_iter = 0
+                    row = ''
+            print('\n'.join(f_rows))
 
     def __hexdump_store__(self, data):
         return None
@@ -1577,7 +1610,7 @@ class FridaCli(object):
             if len(inp) > 0:
                 self.cmd_manager.handle_command(inp)
 
-    def hexdump(self, data, offset=0):
+    def hexdump(self, data, offset=0, ret='print'):
         b_to_h = lambda b: ' '.join('%02x' % i for i in six.iterbytes(b))
         result = []
         while len(data) > 0:
@@ -1645,8 +1678,11 @@ class FridaCli(object):
             result.append('%s: %s%s' % (address, hexline, tail))
             data = data[chunk_size:]
         if len(result) > 0:
-            self.context_title('0x%x' % offset)
-            print('\n'.join(result))
+            if ret == 'print':
+                self.context_title('0x%x' % offset)
+                print('\n'.join(result))
+            elif ret == 'return':
+                return result
 
     @staticmethod
     def get_terminal_size():
