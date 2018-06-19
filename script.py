@@ -5,6 +5,7 @@ def get_script(module, offsets):
         var sleep = false;
         var cContext = null;
         var cOff = 0x0;
+        var targets = {};
                 
         function sendContext() {
             var context = {};
@@ -37,7 +38,7 @@ def get_script(module, offsets):
                 return;
             }
             send('1:::' + pt);
-            Interceptor.attach(pt, function() {
+            targets['' + pt] = Interceptor.attach(pt, function() {
                 cContext = this.context;
                 cOff = off;
                 sendContext();
@@ -170,6 +171,20 @@ def get_script(module, offsets):
                 } catch(err) {
                     return null;
                 }
+            },
+            rmt: function(p) {
+                p = base.add(p);
+                if ('' + p in targets) {
+                    targets['' + p].detach();
+                    delete targets['' + p];
+                }
+            },
+            rmvt: function(p) {
+                p = ptr(p);
+                if ('' + p in targets) {
+                    targets['' + p].detach();
+                    delete targets['' + p];
+                }                
             },
             rw: function(r, v) {
                 try {

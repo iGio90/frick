@@ -1449,6 +1449,32 @@ class Registers(Command):
         print('%s (%u)' % (Color.colorify('0x%x' % result, 'green highlight'), result))
 
 
+class Remove(Command):
+    def get_command_info(self):
+        return {
+            'name': 'remove',
+            'shortcuts': [
+                'rem', 'del', 'delete'
+            ],
+            'args': 1,
+            'info': 'remove an offsets from targets list'
+        }
+
+    def __remove__(self, args):
+        if args[0] in self.cli.context_manager.get_target_offsets():
+            del self.cli.context_manager.get_target_offsets()[args[0]]
+            if self.cli.frida_script is not None:
+                self.cli.frida_script.exports.rmt(args[0])
+            return args[0]
+        else:
+            if self.cli.frida_script is not None:
+                self.cli.frida_script.exports.rmvt(args[0])
+                return args[0]
+
+    def __remove_result__(self, result):
+        log(result)
+
+
 class Quit(Command):
     def get_command_info(self):
         return {

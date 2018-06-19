@@ -15,6 +15,7 @@
 |  print      |  p,pr                           |                                                                                     |
 |  quit       |  q                              |                                                                                     |
 |  registers  |  r,reg,regs                     |  interact with registers                                                            |
+|  remove     |  del,delete,rem                 |  remove an offsets from targets list                                                |
 |  run        |  c,cont,continue,go,next,start  |  continue the execution of the process to the next target offset                    |
 |  session    |  s,ss                           |                                                                                     |
 |  set        |                                 |                                                                                     |
