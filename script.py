@@ -103,6 +103,15 @@ def get_script(module, offsets):
             mal: function(l) {
                 return Memory.alloc(l);
             },
+            mprot: function(p, l, f) {
+                try {
+                    p = ptr(p);
+                    Memory.protect(p, l, f);
+                    return p;
+                } catch(err) {
+                    return null;
+                }
+            },
             mr: function(p, l) {
                 try {
                     return Memory.readByteArray(ptr(p), l);

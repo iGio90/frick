@@ -29,11 +29,12 @@
 |  ranges   |  range,r,rg          |  list all ranges or single range in optional arg0    |
 
 # memory sub commands
-|  command  |  short  |                             info                             |
-|-----------|---------|--------------------------------------------------------------|
-|  alloc    |  a,al   |  allocate arg0 size in the heap and return the pointer       |
-|  write    |  wr,w   |  write into address arg0 the bytes in args... (de ad be ef)  |
-|  read     |  rd,r   |  read bytes from address in arg0 for len in arg1             |
+|  command  |      short      |                                     info                                     |
+|-----------|-----------------|------------------------------------------------------------------------------|
+|  alloc    |  a,al           |  allocate arg0 size in the heap and return the pointer                       |
+|  write    |  wr,w           |  write into address arg0 the bytes in args... (de ad be ef)                  |
+|  protect  |  prot,pro,pr,p  |  protect address in arg0 for the len arg1 and the prot format in arg2 (rwx)  |
+|  read     |  rd,r           |  read bytes from address in arg0 for len in arg1                             |
 
 # registers sub commands
 |  command  |  short  |                  info                   |
@@ -53,11 +54,11 @@
 |  pointer      |  p,ptr                       |  read a pointer from address in arg0                                                   |
 |  byte         |  b                           |  read a signed byte from address in arg0 with optional endianness in arg1 (le/be)      |
 |  int          |  i                           |  read a signed int from address in arg0 with optional endianness in arg1 (le/be)       |
-|  long         |  i                           |  read a signed long from address in arg0 with optional endianness in arg1 (le/be)      |
+|  long         |  l                           |  read a signed long from address in arg0 with optional endianness in arg1 (le/be)      |
 |  short        |  s                           |  read a signed short from address in arg0 with optional endianness in arg1 (le/be)     |
 |  ubyte        |  ub                          |  read an unsigned byte from address in arg0 with optional endianness in arg1 (le/be)   |
 |  uint         |  ui                          |  read an unsigned int from address in arg0 with optional endianness in arg1 (le/be)    |
-|  ulong        |  ui                          |  read an unsigned long from address in arg0 with optional endianness in arg1 (le/be)   |
+|  ulong        |  ul                          |  read an unsigned long from address in arg0 with optional endianness in arg1 (le/be)   |
 |  ushort       |  us                          |  read an unsigned short from address in arg0 with optional endianness in arg1 (le/be)  |
 |  ansistring   |  ansistr,ansi,ans            |  read ansi string from address in arg0 and optional len in arg1                        |
 |  asciistring  |  asciistr,ascii,acs          |  read ascii string from address in arg0 and optional len in arg1                       |

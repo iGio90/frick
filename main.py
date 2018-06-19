@@ -65,7 +65,11 @@ def log(what):
         c = 'green highlight'
         if cli.frida_script is not None and cli.frida_script.exports.ivp(what):
             c = 'red highlight'
-        print('-> %s (%s)' % (Color.colorify(hex((what + (1 << 32)) % (1 << 32)), c), Color.colorify(str(what), 'bold')))
+        if what < 0:
+            v = hex((what + (1 << 32)) % (1 << 32))
+        else:
+            v = hex(what)
+        print('-> %s (%s)' % (Color.colorify(v, c), Color.colorify(str(what), 'bold')))
     elif t is six.text_type:
         print('-> %s' % what.encode('ascii', 'ignore'))
     else:
@@ -968,6 +972,12 @@ class Memory(Command):
                     ]
                 },
                 {
+                    'name': 'protect',
+                    'args': 3,
+                    'info': 'protect address in arg0 for the len arg1 and the prot format in arg2 (rwx)',
+                    'shortcuts': ['prot', 'pro', 'pr', 'p'],
+                },
+                {
                     'name': 'write',
                     'args': 2,
                     'info': 'write into address arg0 the bytes in args... (de ad be ef)',
@@ -1078,6 +1088,16 @@ class Memory(Command):
             return None
 
     def __pointer_result__(self, result):
+        log(result)
+
+    def __protect__(self, args):
+        try:
+            return int(self.cli.frida_script.exports.mprot(args[0], args[1], args[2]), 16)
+        except Exception as e:
+            log('failed to read data from device: %s' % e)
+            return None
+
+    def __protect_result__(self, result):
         log(result)
 
     def __read__(self, args):
