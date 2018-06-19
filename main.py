@@ -950,6 +950,14 @@ class Memory(Command):
                     ]
                 },
                 {
+                    'name': 'dump',
+                    'args': 3,
+                    'info': 'read bytes in arg0 for len in arg1 and store into filename arg2',
+                    'shortcuts': [
+                        'd'
+                    ]
+                },
+                {
                     'name': 'read',
                     'args': 2,
                     'info': 'read bytes from address in arg0 for len in arg1',
@@ -1153,6 +1161,21 @@ class Memory(Command):
 
     def __byte_store__(self, data):
         return data[1]
+
+    def __dump__(self, args):
+        data = self._internal_read_data_(args[0], args[1])
+        if data is not None:
+            data = data[1]
+            try:
+                with open(args[2], 'wb') as f:
+                    f.write(data)
+                return [str(args[1]), args[2]]
+            except Exception as e:
+                log('failed to write data: %s' % e)
+                return None
+
+    def __dump_result__(self, result):
+        log('written %s bytes into %s' % (result[0], result[1]))
 
     def __int__(self, args):
         return self._read_data_by_type(args, 4, 'i')

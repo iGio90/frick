@@ -42,6 +42,7 @@
 |  alloc    |  a,al           |  allocate arg0 size in the heap and return the pointer                       |
 |  write    |  wr,w           |  write into address arg0 the bytes in args... (de ad be ef)                  |
 |  protect  |  prot,pro,pr,p  |  protect address in arg0 for the len arg1 and the prot format in arg2 (rwx)  |
+|  dump     |  d              |  read bytes in arg0 for len in arg1 and store into filename arg2             |
 |  read     |  rd,r           |  read bytes from address in arg0 for len in arg1                             |
 
 # registers sub commands
