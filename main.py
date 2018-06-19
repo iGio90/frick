@@ -1213,12 +1213,13 @@ class Pack(Command):
         l = ''
         for a in args:
             if type(a) is int:
-                l += '%x' % a
+                c = ''
+                if len(str(a)) % 2 is not 0:
+                    c = '0'
+                l += '%s%x' % (c, a)
             elif type(a) is str:
                 l += binascii.hexlify(a)
         r = [l[i:i+2] for i in range(0, len(l), 2)]
-        if len(r[len(r) - 1]) is 1:
-            r[len(r) - 1] = '0' + r[len(r) - 1]
         return ' '.join(r)
 
     def __pack_result__(self, result):
