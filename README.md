@@ -23,6 +23,7 @@ Frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 * commands arguments evaluation (see examples later)
 * command ``destruct`` should be really helpful while reversing structs (see screenshot later)
 * read with ease any data type, signed/unsigned/le/be
+* disasm
 
 ##### checkout the [complete commands list](./COMMANDS.md)
 ##### or how to [improve and create new commands](./EXTENDING.md)

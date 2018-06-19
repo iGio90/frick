@@ -32,11 +32,10 @@ def get_script(module, offsets):
             send('2:::' + cOff + ':::' + JSON.stringify(context) + ':::' + JSON.stringify(sbt) + ':::' + bytesToHex(tds));
         }
         
-        function att(off) {
+        function att(off, pt) {
             if (base == 0) {
                 return;
             }
-            var pt = base.add(off);
             send('1:::' + pt);
             Interceptor.attach(pt, function() {
                 cContext = this.context;
@@ -51,7 +50,10 @@ def get_script(module, offsets):
         
         rpc.exports = {
             add: function(what) {
-                att(what);
+                att(what, base.add(what));
+            },
+            addv: function(what) {
+                att(what, ptr(what));
             },
             bt: function() {
                 return Thread.backtrace(cContext, Backtracer.ACCURATE).map(DebugSymbol.fromAddress);
@@ -208,6 +210,6 @@ def get_script(module, offsets):
             send('0:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);            
     '''
     for k, v in offsets.items():
-        js += 'att(' + str(k) + ');'
+        js += 'att(' + str(k) + ', base.add(' + str(k) + '));'
     js += '}, 250);'
     return js

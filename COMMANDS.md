@@ -20,6 +20,11 @@
 |  set        |                                 |                                                                                     |
 
 ---
+# add sub commands
+|  command  |  short  |                               info                               |
+|-----------|---------|------------------------------------------------------------------|
+|  pointer  |  ptr,p  |  add a virtual address in arg0 with optional name in other args  |
+
 # find sub commands
 |  command  |   short    |                                info                                 |
 |-----------|------------|---------------------------------------------------------------------|

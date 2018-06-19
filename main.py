@@ -498,7 +498,17 @@ class Add(Command):
         return {
             'name': 'add',
             'info': 'add offset from base 0x0 in arg0 with optional name for this target in other args',
-            'args': 1
+            'args': 1,
+            'sub': [
+                {
+                    'name': 'pointer',
+                    'info': 'add a virtual address in arg0 with optional name in other args',
+                    'args': 1,
+                    'shortcuts': [
+                        'ptr', 'p'
+                    ]
+                }
+            ]
         }
 
     def __add__(self, args):
@@ -515,6 +525,13 @@ class Add(Command):
     def __add_result__(self, result):
         log('%s added to target offsets' % Color.colorify('0x%x' % result, 'red highlight'))
 
+    def __pointer__(self, args):
+        if self.cli.frida_script is not None and type(args[0]) is int:
+            self.cli.frida_script.exports.addv(args[0])
+            return args[0]
+
+    def __pointer_result__(self, result):
+        log('%s added to target offsets' % Color.colorify('0x%x' % result, 'red highlight'))
 
 class Attach(Command):
     def get_command_info(self):
