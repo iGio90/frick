@@ -1,6 +1,6 @@
-# Frick
+# frick
 
-Frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init gef by @hugsy, with commands design similar to uDdbg.
+frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init gef by @hugsy, with commands design similar to uDdbg.
 
 ![Alt text](https://image.ibb.co/c7GxkJ/Schermata_2018_06_19_alle_17_47_32.png "frick") 
 
