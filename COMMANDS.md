@@ -23,7 +23,7 @@
 # add sub commands
 |  command  |  short  |                               info                               |
 |-----------|---------|------------------------------------------------------------------|
-|  pointer  |  ptr,p  |  add a virtual address in arg0 with optional name in other args  |
+|  pointer  |  p,ptr  |  add a virtual address in arg0 with optional name in other args  |
 
 # find sub commands
 |  command  |   short    |                                info                                 |
@@ -33,33 +33,17 @@
 # info sub commands
 |  command  |        short         |                         info                         |
 |-----------|----------------------|------------------------------------------------------|
-|  modules  |  module,mod,mo,md,m  |  list all modules or single module in optional arg0  |
-|  ranges   |  range,r,rg          |  list all ranges or single range in optional arg0    |
+|  modules  |  m,md,mo,mod,module  |  list all modules or single module in optional arg0  |
+|  ranges   |  r,range,rg          |  list all ranges or single range in optional arg0    |
 
 # memory sub commands
 |  command  |      short      |                                     info                                     |
 |-----------|-----------------|------------------------------------------------------------------------------|
 |  alloc    |  a,al           |  allocate arg0 size in the heap and return the pointer                       |
-|  write    |  wr,w           |  write into address arg0 the bytes in args... (de ad be ef)                  |
-|  protect  |  prot,pro,pr,p  |  protect address in arg0 for the len arg1 and the prot format in arg2 (rwx)  |
+|  write    |  w,wr           |  write into address arg0 the bytes in args... (de ad be ef)                  |
+|  protect  |  p,pr,pro,prot  |  protect address in arg0 for the len arg1 and the prot format in arg2 (rwx)  |
 |  dump     |  d              |  read bytes in arg0 for len in arg1 and store into filename arg2             |
-|  read     |  rd,r           |  read bytes from address in arg0 for len in arg1                             |
-
-# registers sub commands
-|  command  |  short  |                  info                   |
-|-----------|---------|-----------------------------------------|
-|  write    |  wr,w   |  write in register arg0 the value arg1  |
-
-# session sub commands
-|  command  |  short  |                                           info                                           |
-|-----------|---------|------------------------------------------------------------------------------------------|
-|  load     |  l,ld   |  load session from previously saved information                                          |
-|  save     |  s,sv   |  saves current target offsets, package and module to be immediatly executed with 'load'  |
-
-# set sub commands
-|  command   |  short  |           info            |
-|------------|---------|---------------------------|
-|  capstone  |  cs     |  capstone configurations  |
+|  read     |  r,rd           |  read bytes from address in arg0 for len in arg1                             |
 
 ---
 # memory read sub commands
@@ -74,11 +58,28 @@
 |  uint         |  ui                          |  read an unsigned int from address in arg0 with optional endianness in arg1 (le/be)    |
 |  ulong        |  ul                          |  read an unsigned long from address in arg0 with optional endianness in arg1 (le/be)   |
 |  ushort       |  us                          |  read an unsigned short from address in arg0 with optional endianness in arg1 (le/be)  |
-|  ansistring   |  ansistr,ansi,ans            |  read ansi string from address in arg0 and optional len in arg1                        |
-|  asciistring  |  asciistr,ascii,acs          |  read ascii string from address in arg0 and optional len in arg1                       |
-|  utf16string  |  utf16str,utf16s,utf16,u16s  |  read utf16 string from address in arg0 and optional len in arg1                       |
-|  utf8string   |  utf8str,utf8s,utf8,u8s      |  read utf8 string from address in arg0 and optional len in arg1                        |
+|  ansistring   |  ans,ansi,ansistr            |  read ansi string from address in arg0 and optional len in arg1                        |
+|  asciistring  |  acs,ascii,asciistr          |  read ascii string from address in arg0 and optional len in arg1                       |
+|  utf16string  |  u16s,utf16,utf16s,utf16str  |  read utf16 string from address in arg0 and optional len in arg1                       |
+|  utf8string   |  u8s,utf8,utf8s,utf8str      |  read utf8 string from address in arg0 and optional len in arg1                        |
 
+# registers sub commands
+|  command  |  short  |                  info                   |
+|-----------|---------|-----------------------------------------|
+|  write    |  w,wr   |  write in register arg0 the value arg1  |
+
+# session sub commands
+|  command  |  short  |                                           info                                           |
+|-----------|---------|------------------------------------------------------------------------------------------|
+|  load     |  l,ld   |  load session from previously saved information                                          |
+|  save     |  s,sv   |  saves current target offsets, package and module to be immediatly executed with 'load'  |
+
+# set sub commands
+|  command   |  short  |           info            |
+|------------|---------|---------------------------|
+|  capstone  |  cs     |  capstone configurations  |
+
+---
 # set capstone sub commands
 |  command  |   short    |              info               |
 |-----------|------------|---------------------------------|
