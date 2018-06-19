@@ -66,7 +66,7 @@ def log(what):
         if cli.frida_script is not None and cli.frida_script.exports.ivp(what):
             c = 'red highlight'
         print('-> %s (%s)' % (Color.colorify(hex((what + (1 << 32)) % (1 << 32)), c), Color.colorify(str(what), 'bold')))
-    elif t is unicode:
+    elif t is six.text_type:
         print('-> %s' % what.encode('ascii', 'ignore'))
     else:
         pprint(what)
@@ -1343,7 +1343,7 @@ class FridaCli(object):
         atexit.register(readline.write_history_file, hist)
 
         while True:
-            inp = raw_input('')
+            inp = six.moves.input().strip()
             if len(inp) > 0:
                 self.cmd_manager.handle_command(inp)
 
