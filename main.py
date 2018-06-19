@@ -921,7 +921,7 @@ class Memory(Command):
                             'info': 'read a signed long from address in arg0 with optional endianness in arg1 (le/be)',
                             'args': 1,
                             'shortcuts': [
-                                'i'
+                                'l'
                             ]
                         },
                         {
@@ -930,7 +930,7 @@ class Memory(Command):
                                     'optional endianness in arg1 (le/be)',
                             'args': 1,
                             'shortcuts': [
-                                'ui'
+                                'ul'
                             ]
                         },
                         {
