@@ -65,7 +65,7 @@ def log(what):
         c = 'green highlight'
         if cli.frida_script is not None and cli.frida_script.exports.ivp(what):
             c = 'red highlight'
-        print('-> %s (%s)' % (Color.colorify('0x%x' % what, c), Color.colorify(str(what), 'bold')))
+        print('-> %s (%s)' % (Color.colorify(hex((what + (1 << 32)) % (1 << 32)), c), Color.colorify(str(what), 'bold')))
     elif t is unicode:
         print('-> %s' % what.encode('ascii', 'ignore'))
     else:
@@ -864,6 +864,106 @@ class Memory(Command):
                             'shortcuts': [
                                 'p', 'ptr'
                             ]
+                        },
+                        {
+                            'name': 'byte',
+                            'info': 'read a signed byte from address in arg0 with optional endianness in arg1 (le/be)',
+                            'args': 1,
+                            'shortcuts': [
+                                'b'
+                            ]
+                        },
+                        {
+                            'name': 'ubyte',
+                            'info': 'read an unsigned byte from address in arg0 with '
+                                    'optional endianness in arg1 (le/be)',
+                            'args': 1,
+                            'shortcuts': [
+                                'ub'
+                            ]
+                        },
+                        {
+                            'name': 'short',
+                            'info': 'read a signed short from address in arg0 with optional endianness in arg1 (le/be)',
+                            'args': 1,
+                            'shortcuts': [
+                                's'
+                            ]
+                        },
+                        {
+                            'name': 'ushort',
+                            'info': 'read an unsigned short from address in arg0 with '
+                                    'optional endianness in arg1 (le/be)',
+                            'args': 1,
+                            'shortcuts': [
+                                'us'
+                            ]
+                        },
+                        {
+                            'name': 'int',
+                            'info': 'read a signed int from address in arg0 with optional endianness in arg1 (le/be)',
+                            'args': 1,
+                            'shortcuts': [
+                                'i'
+                            ]
+                        },
+                        {
+                            'name': 'uint',
+                            'info': 'read an unsigned int from address in arg0 with '
+                                    'optional endianness in arg1 (le/be)',
+                            'args': 1,
+                            'shortcuts': [
+                                'ui'
+                            ]
+                        },
+                        {
+                            'name': 'long',
+                            'info': 'read a signed long from address in arg0 with optional endianness in arg1 (le/be)',
+                            'args': 1,
+                            'shortcuts': [
+                                'i'
+                            ]
+                        },
+                        {
+                            'name': 'ulong',
+                            'info': 'read an unsigned long from address in arg0 with '
+                                    'optional endianness in arg1 (le/be)',
+                            'args': 1,
+                            'shortcuts': [
+                                'ui'
+                            ]
+                        },
+                        {
+                            'name': 'utf8string',
+                            'info': 'read utf8 string from address in arg0 and optional len in arg1',
+                            'args': 1,
+                            'shortcuts': [
+                                'utf8str', 'utf8s', 'utf8', 'u8s'
+                            ]
+                        },
+                        {
+                            'name': 'utf16string',
+                            'info': 'read utf16 string from address in arg0 and optional len in arg1',
+                            'args': 1,
+                            'shortcuts': [
+                                'utf16str', 'utf16s', 'utf16', 'u16s'
+                            ]
+                        },
+                        {
+                            'name': 'ansistring',
+                            'info': 'read ansi string from address in arg0 and optional len in arg1',
+                            'args': 1,
+                            'shortcuts': [
+                                'ansistr', 'ansi', 'ans'
+                            ]
+                        },
+                        {
+                            'name': 'asciistring',
+                            'info': 'read ascii string from address in arg0 and optional len in arg1',
+                            'args': 1,
+                            'shortcuts': [
+                                'asciistr', 'ascii', 'acs'
+                            ]
                         }
                     ]
                 },
@@ -876,6 +976,32 @@ class Memory(Command):
             ]
         }
 
+    def _get_string_length(self, args):
+        l = -1
+        if len(args) > 1:
+            l = args[1]
+        return l
+
+    def _internal_read_data_(self, ptr, len):
+        try:
+            return [ptr, self.cli.frida_script.exports.mr(ptr, len)]
+        except Exception as e:
+            log('failed to read data from device: %s' % e)
+            return None
+
+    def _parse_endianness_(self, args):
+        if len(args) > 1 and args[1] == 'le':
+            return '<'
+        return '>'
+
+    def _read_data_by_type(self, args, data_len, data_mark):
+        b = self._internal_read_data_(args[0], data_len)
+        if b is not None:
+            c = b.pop(1)
+            val = struct.unpack('%s%s' % (self._parse_endianness_(args), data_mark), c)[0]
+            b.append(val)
+        return b
+
     def __alloc__(self, args):
         if self.cli.frida_script is not None:
             return int(self.cli.frida_script.exports.mal(args[0]), 16)
@@ -884,17 +1010,64 @@ class Memory(Command):
     def __alloc_result(self, result):
         log(result)
 
-    def __read__(self, args):
+    def __ansistring__(self, args):
         try:
-            return [args[0], self.cli.frida_script.exports.mr(args[0], args[1])]
+            l = self._get_string_length(args)
+            return [args[0], self.cli.frida_script.exports.mrans(args[0], l)]
         except Exception as e:
             log('failed to read data from device: %s' % e)
             return None
 
-    def __read_result__(self, result):
-        self.cli.hexdump(result[1], result[0])
+    def __ansistring_result__(self, result):
+        self.cli.context_title('0x%x' % result[0])
+        log(result[1])
 
-    def __read_store__(self, data):
+    def __ansistring_store__(self, data):
+        return data[1]
+
+    def __asciistring__(self, args):
+        try:
+            l = self._get_string_length(args)
+            return [args[0], self.cli.frida_script.exports.mracs(args[0], l)]
+        except Exception as e:
+            log('failed to read data from device: %s' % e)
+            return None
+
+    def __asciistring_result__(self, result):
+        self.cli.context_title('0x%x' % result[0])
+        log(result[1])
+
+    def __asciistring_store__(self, data):
+        return data[1]
+
+    def __byte__(self, args):
+        return self._read_data_by_type(args, 1, 'b')
+
+    def __byte_result__(self, result):
+        self.cli.context_title('0x%x' % result[0])
+        log(result[1])
+
+    def __byte_store__(self, data):
+        return data[1]
+
+    def __int__(self, args):
+        return self._read_data_by_type(args, 4, 'i')
+
+    def __int_result__(self, result):
+        self.cli.context_title('0x%x' % result[0])
+        log(result[1])
+
+    def __int_store__(self, data):
+        return data[1]
+
+    def __long__(self, args):
+        return self._read_data_by_type(args, 8, 'q')
+
+    def __long_result__(self, result):
+        self.cli.context_title('0x%x' % result[0])
+        log(result[1])
+
+    def __long_store__(self, data):
         return data[1]
 
     def __pointer__(self, args):
@@ -906,6 +1079,95 @@ class Memory(Command):
 
     def __pointer_result__(self, result):
         log(result)
+
+    def __read__(self, args):
+        return self._internal_read_data_(args[0], args[1])
+
+    def __read_result__(self, result):
+        self.cli.hexdump(result[1], result[0])
+
+    def __read_store__(self, data):
+        return data[1]
+
+    def __short__(self, args):
+        return self._read_data_by_type(args, 2, 'h')
+
+    def __short_result__(self, result):
+        self.cli.context_title('0x%x' % result[0])
+        log(result[1])
+
+    def __short_store__(self, data):
+        return data[1]
+
+    def __ubyte__(self, args):
+        return self._read_data_by_type(args, 1, 'B')
+
+    def __ubyte_result__(self, result):
+        self.cli.context_title('0x%x' % result[0])
+        log(result[1])
+
+    def __ubyte_store__(self, data):
+        return data[1]
+
+    def __uint__(self, args):
+        return self._read_data_by_type(args, 4, 'I')
+
+    def __uint_result__(self, result):
+        self.cli.context_title('0x%x' % result[0])
+        log(result[1])
+
+    def __uint_store__(self, data):
+        return data[1]
+
+    def __ulong__(self, args):
+        return self._read_data_by_type(args, 8, 'Q')
+
+    def __ulong_result__(self, result):
+        self.cli.context_title('0x%x' % result[0])
+        log(result[1])
+
+    def __ulong_store__(self, data):
+        return data[1]
+
+    def __ushort__(self, args):
+        return self._read_data_by_type(args, 2, 'H')
+
+    def __ushort_result__(self, result):
+        self.cli.context_title('0x%x' % result[0])
+        log(result[1])
+
+    def __ushort_store__(self, data):
+        return data[1]
+
+    def __utf8string__(self, args):
+        try:
+            l = self._get_string_length(args)
+            return [args[0], self.cli.frida_script.exports.mru8s(args[0], l)]
+        except Exception as e:
+            log('failed to read data from device: %s' % e)
+            return None
+
+    def __utf8string_result__(self, result):
+        self.cli.context_title('0x%x' % result[0])
+        log(result[1])
+
+    def __utf8string_store__(self, data):
+        return data[1]
+
+    def __utf16string__(self, args):
+        try:
+            l = self._get_string_length(args)
+            return [args[0], self.cli.frida_script.exports.mru16s(args[0], l)]
+        except Exception as e:
+            log('failed to read data from device: %s' % e)
+            return None
+
+    def __utf16string_result__(self, result):
+        self.cli.context_title('0x%x' % result[0])
+        log(result[1])
+
+    def __utf16string_store__(self, data):
+        return data[1]
 
     def __write__(self, args):
         try:
@@ -1114,7 +1376,7 @@ class FridaCli(object):
                     except:
                         pass
                 else:
-                    ptr_min = len(n)
+                    ptr_size = len(n)
                 var_hex = b_to_h(n[0:ptr_size])
                 var_i = int('0x%s' % ''.join(var_hex.split(' ')), 16)
                 if var_i > 0:

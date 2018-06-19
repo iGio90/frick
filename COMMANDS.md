@@ -32,8 +32,8 @@
 |  command  |  short  |                             info                             |
 |-----------|---------|--------------------------------------------------------------|
 |  alloc    |  a,al   |  allocate arg0 size in the heap and return the pointer       |
-|  read     |  rd,r   |  read bytes from address in arg0 for len in arg1             |
 |  write    |  wr,w   |  write into address arg0 the bytes in args... (de ad be ef)  |
+|  read     |  rd,r   |  read bytes from address in arg0 for len in arg1             |
 
 # registers sub commands
 |  command  |  short  |                  info                   |
@@ -43,12 +43,24 @@
 # session sub commands
 |  command  |  short  |                                           info                                           |
 |-----------|---------|------------------------------------------------------------------------------------------|
-|  save     |  s,sv   |  saves current target offsets, package and module to be immediatly executed with 'load'  |
 |  load     |  l,ld   |  load session from previously saved information                                          |
+|  save     |  s,sv   |  saves current target offsets, package and module to be immediatly executed with 'load'  |
 
 ---
 # memory read sub commands
-|  command  |  short  |                 info                  |
-|-----------|---------|---------------------------------------|
-|  pointer  |  p,ptr  |  read a pointer from address in arg0  |
+|    command    |            short             |                                          info                                          |
+|---------------|------------------------------|----------------------------------------------------------------------------------------|
+|  pointer      |  p,ptr                       |  read a pointer from address in arg0                                                   |
+|  byte         |  b                           |  read a signed byte from address in arg0 with optional endianness in arg1 (le/be)      |
+|  int          |  i                           |  read a signed int from address in arg0 with optional endianness in arg1 (le/be)       |
+|  long         |  i                           |  read a signed long from address in arg0 with optional endianness in arg1 (le/be)      |
+|  short        |  s                           |  read a signed short from address in arg0 with optional endianness in arg1 (le/be)     |
+|  ubyte        |  ub                          |  read an unsigned byte from address in arg0 with optional endianness in arg1 (le/be)   |
+|  uint         |  ui                          |  read an unsigned int from address in arg0 with optional endianness in arg1 (le/be)    |
+|  ulong        |  ui                          |  read an unsigned long from address in arg0 with optional endianness in arg1 (le/be)   |
+|  ushort       |  us                          |  read an unsigned short from address in arg0 with optional endianness in arg1 (le/be)  |
+|  ansistring   |  ansistr,ansi,ans            |  read ansi string from address in arg0 and optional len in arg1                        |
+|  asciistring  |  asciistr,ascii,acs          |  read ascii string from address in arg0 and optional len in arg1                       |
+|  utf16string  |  utf16str,utf16s,utf16,u16s  |  read utf16 string from address in arg0 and optional len in arg1                       |
+|  utf8string   |  utf8str,utf8s,utf8,u8s      |  read utf8 string from address in arg0 and optional len in arg1                        |
 

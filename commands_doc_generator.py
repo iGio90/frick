@@ -46,7 +46,7 @@ while True:
         writer.table_name = "%s sub commands" % cmd
         writer.value_matrix = []
         cmd_info_arr = subs[cmd]
-        for cmd_info in cmd_info_arr:
+        for cmd_info in sorted(cmd_info_arr):
             st = ''
             info = ''
             sub = ''

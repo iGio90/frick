@@ -4,7 +4,7 @@ Frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 
 ![Alt text](https://image.ibb.co/kGqSfJ/Schermata_2018_06_17_alle_14_57_25.png "frick") 
 
-![Alt text](https://preview.ibb.co/eXYvkJ/Schermata_2018_06_17_alle_18_49_07.png "frick")
+![Alt text](https://preview.ibb.co/gSX9Ed/Schermata_2018_06_19_alle_02_39_54.png "frick")
 
 ![Alt text](https://image.ibb.co/fjSUvJ/Schermata_2018_06_18_alle_11_15_43.png "frick")
 
@@ -22,6 +22,7 @@ Frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 * allow to store vars that can be the result of a command (see examples later)
 * commands arguments evaluation (see examples later)
 * command ``destruct`` should be really helpful while reversing structs (see screenshot later)
+* read with ease any data type, signed/unsigned/le/be
 
 ##### checkout the [complete commands list](./COMMANDS.md)
 ##### or how to [improve and create new commands](./EXTENDING.md)
@@ -101,9 +102,16 @@ will read a pointer in the memory address pointed by the value held in r0. So we
 
 myptr will now be a value which can be used freely in args:
 
-``m r myptr 128``
+```
+m r myptr 128
+print myptr + $r0 + $r1 << 32
+m r myptr uint
+m read myptr ushort le
+m write myptr de ad be ef
 
-``print myptr + $r0 + $r1 << 32``
+temp = m alloc 32
+m w temp aa bb cc dd ee ff
+```
 
 ## Some notes
 

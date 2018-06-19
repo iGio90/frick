@@ -105,8 +105,35 @@ def get_script(module, offsets):
             },
             mr: function(p, l) {
                 try {
-                    p = ptr(p);
-                    return Memory.readByteArray(p, l);
+                    return Memory.readByteArray(ptr(p), l);
+                } catch(err) {
+                    return null;
+                }
+            },
+            mru8s: function(p, l) {
+                try {
+                    return Memory.readUtf8String(ptr(p), l);
+                } catch(err) {
+                    return null;
+                }
+            },
+            mru16s: function(p, l) {
+                try {
+                    return Memory.readUtf16String(ptr(p), l);
+                } catch(err) {
+                    return null;
+                }
+            },
+            mrans: function(p, l) {
+                try {
+                    return Memory.readAnsiString(ptr(p), l);
+                } catch(err) {
+                    return null;
+                }
+            },
+            mracs: function(p, l) {
+                try {
+                    return Memory.readCString(ptr(p), l);
                 } catch(err) {
                     return null;
                 }
