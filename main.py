@@ -309,9 +309,15 @@ class ContextManager(object):
         self.values[key] = value
 
     def apply_arch(self, arch):
+        p_arch = self.arch
         if arch == 'arm':
             self.arch = Arm()
         self.add_value('arch', arch)
+        if p_arch is not None and self.arch is not None:
+            # copy capstone stuffs from previous arch, we could be in the point
+            # we had set a cs arch/mode and p_arch will hold an abstract Arch with just cs info
+            self.arch.capstone_arch = p_arch.capstone_arch
+            self.arch.capstone_mode = p_arch.capstone_mode
         return self.arch
 
     def apply_pointer_size(self, pointer_size):
@@ -362,6 +368,9 @@ class ContextManager(object):
         if key in self.values:
             return self.values[key]
         return None
+
+    def set_arch(self, arch):
+        self.arch = arch
 
     def print_context(self):
         if self.arch is not None:
@@ -1615,12 +1624,11 @@ class Set(Command):
         if type(args[0]) is str:
             __arch_test = 'CS_ARCH_%s' % args[0].upper()
             if __arch_test in arch_list:
-                if self.cli.context_manager.get_arch() is not None:
-                    __arch = getattr(capstone, __arch_test)
-                    self.cli.context_manager.get_arch().set_capstone_arch(__arch)
-                    return __arch
-                else:
-                    print('need a target attached before doing this')
+                if self.cli.context_manager.get_arch() is None:
+                    self.cli.context_manager.set_arch(Arch())
+                __arch = getattr(capstone, __arch_test)
+                self.cli.context_manager.get_arch().set_capstone_arch(__arch)
+                return __arch
         log('arch not found. use one of:')
         log(' '.join(sorted(arch_list)).replace('CS_ARCH_', '').lower())
 
@@ -1629,13 +1637,11 @@ class Set(Command):
         if type(args[0]) is str:
             __mode_test = 'CS_MODE_%s' % args[0].upper()
             if __mode_test in mode_list:
-                if self.cli.context_manager.get_arch() is not None:
-                    __mode = getattr(capstone, __mode_test)
-                    self.cli.context_manager.get_arch().set_capstone_mode(__mode)
-                    return __mode
-                else:
-                    print('need a target attached before doing this')
-                    return None
+                if self.cli.context_manager.get_arch() is None:
+                    self.cli.context_manager.set_arch(Arch())
+                __mode = getattr(capstone, __mode_test)
+                self.cli.context_manager.get_arch().set_capstone_mode(__mode)
+                return __mode
         log('mode not found. use one of:')
         log(' '.join(sorted(mode_list)).replace('CS_MODE_', '').lower())
         return None
