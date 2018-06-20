@@ -135,6 +135,18 @@ class CommandManager(object):
                 except:
                     continue
 
+    def __handle_add_value__(self, key, value):
+        if key.startswith('$'):
+            # we want to write on registers with short hands
+            reg = key[1:].lower()
+            val = Registers(self.cli).__internal_write__(reg, value)
+            if val is not None:
+                print('%s (%u)' % (Color.colorify('0x%x' % val, 'green highlight'), val))
+            return val
+
+        self.cli.context_manager.add_value(key, value)
+        return value
+
     def handle_command(self, p):
         p = p.split(' ')
         base = p[0]
@@ -151,7 +163,7 @@ class CommandManager(object):
                     val = self.__internal_handle_command(tst_method, fm[1:], True)
                     if val is None:
                         val = 0
-                    self.cli.context_manager.add_value(base, val)
+                    return self.__handle_add_value__(base, val)
                 else:
                     formatted_args = self._format_args(fm)
                     if len(formatted_args) > 1:
@@ -159,11 +171,11 @@ class CommandManager(object):
                         for a in formatted_args:
                             ev += '%s ' % str(a)
                         try:
-                            self.cli.context_manager.add_value(base, eval(ev))
+                            return self.__handle_add_value__(base, eval(ev))
                         except:
                             log('failed to evaluate value')
                     else:
-                        self.cli.context_manager.add_value(base, formatted_args[0])
+                        return self.__handle_add_value__(base, formatted_args[0])
             return None
         return self.__internal_handle_command(base, args)
 
@@ -300,7 +312,10 @@ class ContextManager(object):
         self.values = {}
 
     def add_target_offset(self, offset, name=''):
+        if offset in self.target_offsets:
+            return None
         self.target_offsets[offset] = name
+        return offset
 
     def add_dtinit_target_offset(self, offset, name=''):
         self.dtinit_target_offsets[offset] = name
@@ -541,13 +556,17 @@ class Add(Command):
         if len(args) > 1:
             for a in args[1:]:
                 name += str(a) + ' '
-        self.cli.context_manager.add_target_offset(ptr, name)
-        if self.cli.frida_script is not None:
-            self.cli.frida_script.exports.add(ptr)
-        return ptr
+        if self.cli.context_manager.add_target_offset(ptr, name) is not None:
+            if self.cli.frida_script is not None:
+                self.cli.frida_script.exports.add(ptr)
+            return [1, ptr]
+        return [0, ptr]
 
     def __add_result__(self, result):
-        log('%s added to target offsets' % Color.colorify('0x%x' % result, 'red highlight'))
+        if result[0] > 0:
+            log('%s added to target offsets' % Color.colorify('0x%x' % result, 'red highlight'))
+        else:
+            log('%s is already on targets list' % Color.colorify('0x%x' % result, 'red highlight'))
 
     def __dtinit__(self, args):
         ptr = args[0]
@@ -1460,22 +1479,15 @@ class Registers(Command):
             ]
         }
 
-    def __registers__(self, args):
-        try:
-            self.cli.frida_script.exports.sc()
-        except:
-            pass
-
-    def __write__(self, args):
-        reg = args[0].lower()
+    def __internal_write__(self, reg, value):
         if reg in self.cli.context_manager.get_context():
             try:
-                what = args[1]
-                if isinstance(what, str):
-                    what = int('0x%s' % what, 16)
-                v = self.cli.frida_script.exports.rw(reg, what)
+                if isinstance(value, str):
+                    value = int('0x%s' % value, 16)
+                v = self.cli.frida_script.exports.rw(reg, value)
                 if v is not None:
-                    return args[1]
+                    self.cli.context_manager.get_context()[reg] = v
+                    return value
                 else:
                     print('failed to write into register %s' % reg)
                     return None
@@ -1484,6 +1496,16 @@ class Registers(Command):
                 return None
         print('%s - register not found' % (Color.colorify(reg, 'bold')))
         return None
+
+    def __registers__(self, args):
+        try:
+            self.cli.frida_script.exports.sc()
+        except:
+            pass
+
+    def __write__(self, args):
+        reg = args[0].lower()
+        return self.__internal_write__(reg, args[1])
 
     def __write_result__(self, result):
         print('%s (%u)' % (Color.colorify('0x%x' % result, 'green highlight'), result))

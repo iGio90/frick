@@ -35,6 +35,7 @@ def get_script(module, offsets, dtinitOffsets):
                             }
                         }
                         var ppI = Interceptor.attach(pp, function() {
+                            ppI.detach();
                             base = this.context.r1.sub(0x34);
                             send('99:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
 
@@ -42,18 +43,19 @@ def get_script(module, offsets, dtinitOffsets):
                                 att(k, base.add(k));
                             }
 
-                            var dlOpen = Interceptor.attach(Module.findExportByName('libc.so', 'dlopen'), function() {
-                                // detach dt inits
-                                for (var k in targets) {
-                                    targets[k].detach();
-                                    delete targets[k];
-                                }
-                                // we attach later to those targets
-                                for (var k in pTargets) {
-                                    att(k, base.add(k));
-                                }
-                                dlOpen.detach();                                
-                                ppI.detach();
+                            var dlOpen = Interceptor.attach(Module.findExportByName('libc.so', 'dlopen'), {
+                                onLeave: function(ret) {
+                                    // detach dt inits
+                                    for (var k in targets) {
+                                        targets[k+''].detach();
+                                        delete targets[k+''];
+                                    }
+                                    // we attach later to those targets
+                                    for (var k in pTargets) {
+                                        att(k, base.add(k));
+                                    }
+                                    dlOpen.detach();
+                                }                        
                             });
                         });
                     }            
@@ -250,7 +252,6 @@ def get_script(module, offsets, dtinitOffsets):
             },
             rw: function(r, v) {
                 try {
-                    console.log(JSON.stringify(cContext));
                     cContext[r] = v;
                     return v;
                 } catch(err) {
