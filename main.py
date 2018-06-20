@@ -296,10 +296,14 @@ class ContextManager(object):
         self.target_package = ''
         self.target_module = ''
         self.target_offsets = {}
+        self.dtinit_target_offsets = {}
         self.values = {}
 
     def add_target_offset(self, offset, name=''):
         self.target_offsets[offset] = name
+
+    def add_dtinit_target_offset(self, offset, name=''):
+        self.dtinit_target_offsets[offset] = name
 
     def add_value(self, key, value):
         self.values[key] = value
@@ -351,6 +355,9 @@ class ContextManager(object):
     def get_target_offsets(self):
         return self.target_offsets
 
+    def get_dtinit_target_offsets(self):
+        return self.dtinit_target_offsets
+
     def get_value(self, key):
         if key in self.values:
             return self.values[key]
@@ -386,9 +393,11 @@ class ContextManager(object):
             os.remove('.session')
         ext = ''
         if len(self.target_offsets) > 0:
-            ext += 'add '
             for t in self.target_offsets:
-                ext += '%s ' % str(t)
+                ext += 'add %s %s\n' % (str(t), self.target_offsets[t])
+        if len(self.target_offsets) > 0:
+            for t in self.dtinit_target_offsets:
+                ext += 'add dtinit %s %s\n' % (str(t), self.target_offsets[t])
         if self.target_package is not '':
             ext += '\nattach %s %s' % (self.target_package, self.target_module)
         if ext is not '':
@@ -507,6 +516,12 @@ class Add(Command):
                     'shortcuts': [
                         'ptr', 'p'
                     ]
+                },
+                {
+                    'name': 'dtinit',
+                    'info': 'mark this target as dt_init function. on android we leak the base before dlopen',
+                    'args': 1,
+                    'shortcuts': ['dti', 'init']
                 }
             ]
         }
@@ -524,6 +539,19 @@ class Add(Command):
 
     def __add_result__(self, result):
         log('%s added to target offsets' % Color.colorify('0x%x' % result, 'red highlight'))
+
+    def __dtinit__(self, args):
+        ptr = args[0]
+        name = ''
+        if len(args) > 1:
+            for a in args[1:]:
+                name += str(a) + ' '
+        self.cli.context_manager.add_dtinit_target_offset(ptr, name)
+        return ptr
+
+    def __dtinit_result__(self, result):
+        log('%s added to %s target offsets' % (Color.colorify('0x%x' % result, 'red highlight'),
+                                               (Color.colorify('dtinit', 'green highlight'))))
 
     def __pointer__(self, args):
         if self.cli.frida_script is not None and type(args[0]) is int:
@@ -554,7 +582,10 @@ class Attach(Command):
         process = self.cli.frida_device.attach(pid)
         log("frida %s" % Color.colorify('attached', 'bold'))
         self.cli.frida_script = process.create_script(script.get_script(
-            module, self.cli.context_manager.get_target_offsets()))
+            module,
+            self.cli.context_manager.get_target_offsets(),
+            self.cli.context_manager.get_dtinit_target_offsets()
+        ))
         log("script %s" % Color.colorify('injected', 'bold'))
         self.cli.frida_device.resume(package)
         self.cli.frida_script.on('message', self.cli.on_frida_message)
@@ -583,10 +614,10 @@ class Backtrace(Command):
             self.cli.context_title('backtrace')
             for b in result:
                 name = ''
-                if 'name' in b:
-                    name = b['name']
-                    if 'moduleName' in b:
-                        name += ' ' + b['moduleName']
+                if 'name' in b and b['name'] is not None:
+                    name = b['name'] + ' '
+                if 'moduleName' in b and b['moduleName'] is not None:
+                    name += '' + b['moduleName']
                 print('%s\t%s' % (Color.colorify(b['address'], 'red highlight'), name))
 
     def __backtrace_store__(self, data):
@@ -1466,6 +1497,11 @@ class Remove(Command):
             if self.cli.frida_script is not None:
                 self.cli.frida_script.exports.rmt(args[0])
             return args[0]
+        elif args[0] in self.cli.context_manager.get_dtinit_target_offsets():
+            del self.cli.context_manager.get_dtinit_target_offsets()[args[0]]
+            if self.cli.frida_script is not None:
+                self.cli.frida_script.exports.rmt(args[0])
+            return args[0]
         else:
             if self.cli.frida_script is not None:
                 self.cli.frida_script.exports.rmvt(args[0])
@@ -1581,7 +1617,7 @@ class Set(Command):
             if __arch_test in arch_list:
                 if self.cli.context_manager.get_arch() is not None:
                     __arch = getattr(capstone, __arch_test)
-                    self.cli.context_manager.get_arch().get_capstone_arch(__arch)
+                    self.cli.context_manager.get_arch().set_capstone_arch(__arch)
                     return __arch
                 else:
                     print('need a target attached before doing this')
@@ -1595,10 +1631,11 @@ class Set(Command):
             if __mode_test in mode_list:
                 if self.cli.context_manager.get_arch() is not None:
                     __mode = getattr(capstone, __mode_test)
-                    self.cli.context_manager.get_arch().get_capstone_arch(__mode)
+                    self.cli.context_manager.get_arch().set_capstone_mode(__mode)
                     return __mode
                 else:
                     print('need a target attached before doing this')
+                    return None
         log('mode not found. use one of:')
         log(' '.join(sorted(mode_list)).replace('CS_MODE_', '').lower())
         return None
@@ -1748,18 +1785,28 @@ class FridaCli(object):
                 log(message)
                 return
 
-            if id == 0:
+            if id == 0 or id == 99:
                 cli.context_manager.set_base(int(parts[1], 16))
                 if cli.context_manager.apply_arch(parts[2]) is not None:
                     log('target arch: %s' % Color.colorify(parts[2], 'green bold'))
                 cli.context_manager.apply_pointer_size(int(parts[3]))
                 log('pointer size: %s' % Color.colorify(parts[3], 'green bold'))
-                log('target base at %s' % Color.colorify('0x%x' % cli.context_manager.get_base(), 'red highlight'))
+                if id == 0:
+                    log('target base at %s' % Color.colorify('0x%x' % cli.context_manager.get_base(), 'red highlight'))
+                else:
+                    log('%s target base at %s' % (Color.colorify('leaked', 'green highlight'),
+                                                  Color.colorify('0x%x' % cli.context_manager.get_base(),
+                                                                 'red highlight')))
             elif id == 1:
                 log('attached to %s' % Color.colorify(parts[1], 'red highlight'))
             elif id == 2:
                 cli.context_manager.set_context(int(parts[1]), json.loads(parts[2]))
-                name = cli.context_manager.get_target_offsets()[int(parts[1])]
+                name = ''
+                if int(parts[1]) in cli.context_manager.get_target_offsets():
+                    name = cli.context_manager.get_target_offsets()[int(parts[1])]
+                elif int(parts[1]) in cli.context_manager.get_dtinit_target_offsets():
+                    name = Color.colorify('dt_init', 'green highlight') + ' ' + \
+                           cli.context_manager.get_dtinit_target_offsets()[int(parts[1])]
                 if name is not '':
                     cli.context_title('%s - 0x%x' % (name, cli.context_manager.get_context_offset()))
                 else:

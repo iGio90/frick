@@ -25,7 +25,9 @@ frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 * commands arguments evaluation (see examples later)
 * command ``destruct`` should be really helpful while reversing structs (see screenshot later)
 * read with ease any data type, signed/unsigned/le/be
-* disasm
+* disasm with capstone engine
+* multi hexdump ```hexdump $r0 $r1 $r5 256```
+* Android can attach to DT_INIT [read more here on my blog](http://www.giovanni-rocca.com/giving-yourself-a-window-to-debug-a-shared-library-before-dt_init-with-frida-on-android/)
 
 ##### checkout the [complete commands list](./COMMANDS.md)
 ##### or how to [improve and create new commands](./EXTENDING.md)

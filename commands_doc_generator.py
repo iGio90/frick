@@ -48,7 +48,7 @@ def iter_subs(subs):
         writer.table_name = "%s sub commands" % cmd
         writer.value_matrix = []
         cmd_info_arr = subs[cmd]
-        for cmd_info in sorted(cmd_info_arr):
+        for cmd_info in sorted(cmd_info_arr, key=lambda x: x['name']):
             st = ''
             info = ''
             if 'shortcuts' in cmd_info:

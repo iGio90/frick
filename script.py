@@ -1,12 +1,74 @@
-def get_script(module, offsets):
-    js = 'var module = "' + module + '"'
+def get_script(module, offsets, dtinitOffsets):
+    js = 'var module = "' + module + '";'
+    js += 'var pTargets = {};'
+    js += 'var dtInitTargets = {};'
+    for k, v in offsets.items():
+        js += 'pTargets[' + str(k) + '] = ' + str(k) + ';'
+    for k, v in dtinitOffsets.items():
+        js += 'dtInitTargets[' + str(k) + '] = ' + str(k) + ';'
     js += '''
         var base = 0x0;
         var sleep = false;
         var cContext = null;
         var cOff = 0x0;
         var targets = {};
-                
+
+        var linker = Process.findModuleByName('linker');
+        if (linker !== null) {
+            var isLoadingTarget = false;
+            var rdI = Interceptor.attach(Module.findExportByName("libc.so", "open"), {
+                onEnter: function() {
+                    var what = Memory.readUtf8String(this.context.r0);
+                    if (what.indexOf(module) >= 0) {
+                        isLoadingTarget = true;
+                    }
+                }, 
+                onLeave: function(ret) {
+                    if (isLoadingTarget) {
+                        rdI.detach();
+                        isLoadingTarget = false;
+                        var symb = Module.enumerateSymbolsSync("linker");
+                        var pp = 0;
+                        for (var sym in symb) {
+                            if (symb[sym].name.indexOf("prelink") >= 0) {
+                                pp = symb[sym].address
+                            }
+                        }
+                        var ppI = Interceptor.attach(pp, function() {
+                            base = this.context.r1.sub(0x34);
+                            send('99:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
+
+                            for (var k in dtInitTargets) {
+                                att(k, base.add(k));
+                            }
+
+                            var dlOpen = Interceptor.attach(Module.findExportByName('libc.so', 'dlopen'), function() {
+                                // detach dt inits
+                                for (var k in targets) {
+                                    targets[k].detach();
+                                    delete targets[k];
+                                }
+                                // we attach later to those targets
+                                for (var k in pTargets) {
+                                    att(k, base.add(k));
+                                }
+                                dlOpen.detach();                                
+                                ppI.detach();
+                            });
+                        });
+                    }            
+                }
+            });
+        } else {
+            setTimeout(function() {
+                base = Process.findModuleByName(module).base;
+                send('0:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);            
+                for (var k in pTargets) {
+                    att(k, base.add(k));
+                }
+            }, 250);
+        }
+
         function sendContext() {
             var context = {};
             for (var reg in cContext) {
@@ -219,12 +281,5 @@ def get_script(module, offsets):
             }
             return hexStr;
         }
-                
-        setTimeout(function() {
-            base = Process.findModuleByName(module).base;
-            send('0:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);            
     '''
-    for k, v in offsets.items():
-        js += 'att(' + str(k) + ', base.add(' + str(k) + '));'
-    js += '}, 250);'
     return js
