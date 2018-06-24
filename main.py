@@ -606,7 +606,7 @@ class Attach(Command):
         module = args[1]
         if not module.endswith('.so'):
             module += '.so'
-        pid = self.cli.frida_device.spawn([package])
+        pid = self.cli.frida_device.spawn(package)
         process = self.cli.frida_device.attach(pid)
         log("frida %s" % Color.colorify('attached', 'bold'))
         self.cli.frida_script = process.create_script(script.get_script(
@@ -759,6 +759,9 @@ class DisAssembler(Command):
                 off = 0
                 if len(args) > 1:
                     off = args[1]
+            elif type(args[0]) is bytes:
+                b = args[0]
+                off = args[1]
             else:
                 l = 32
                 if len(args) > 1:

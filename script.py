@@ -43,18 +43,18 @@ def get_script(module, offsets, dtinitOffsets):
                                 att(k, base.add(k));
                             }
 
-                            var dlOpen = Interceptor.attach(Module.findExportByName('libc.so', 'dlopen'), {
+                            var dlSym = Interceptor.attach(Module.findExportByName('libc.so', 'dlsym'), {
                                 onLeave: function(ret) {
+                                    dlSym.detach();
+
                                     // detach dt inits
                                     for (var k in targets) {
-                                        targets[k+''].detach();
                                         delete targets[k+''];
                                     }
                                     // we attach later to those targets
                                     for (var k in pTargets) {
                                         att(k, base.add(k));
                                     }
-                                    dlOpen.detach();
                                 }                        
                             });
                         });
@@ -109,7 +109,7 @@ def get_script(module, offsets, dtinitOffsets):
                 sleep = true;
                 while(sleep) {
                     Thread.sleep(1);
-                }
+                }                    
             });
         }
         
@@ -135,6 +135,13 @@ def get_script(module, offsets, dtinitOffsets):
             },
             ers: function() {
                 var m = Process.enumerateRangesSync('---');
+                if (m != null) {
+                    m = JSON.stringify(m);
+                }
+                return m;
+            },
+            ets: function() {
+                var m = Process.enumerateThreadsSync();
                 if (m != null) {
                     m = JSON.stringify(m);
                 }
