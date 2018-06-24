@@ -49,6 +49,7 @@ def get_script(module, offsets, dtinitOffsets):
 
                                     // detach dt inits
                                     for (var k in targets) {
+                                        targets[k+''].detach();
                                         delete targets[k+''];
                                     }
                                     // we attach later to those targets
