@@ -25,8 +25,6 @@
 
 import atexit
 import binascii
-from threading import Thread
-
 import capstone
 import fcntl
 import frida
@@ -41,6 +39,7 @@ import termios
 import readline as readline
 
 from pprint import pprint
+from threading import Thread
 
 
 def log(what):
@@ -662,6 +661,10 @@ class Attach(Command):
         module = args[1]
         if not module.endswith('.so'):
             module += '.so'
+        if self.cli.frida_device is None:
+            if not self.cli.bind_device(5):
+                log('failed to connected to remote frida server')
+                return None
         pid = self.cli.frida_device.spawn(package)
         process = self.cli.frida_device.attach(pid)
         log("frida %s" % Color.colorify('attached', 'bold'))
@@ -919,7 +922,7 @@ class Help(Command):
     def get_command_help_line(self, cmd_info, depth):
         cmd_name = cmd_info['name']
         st = '    ' * depth
-        st += Color.colorify(cmd_name, 'pink highlight')
+        st += Color.colorify(cmd_name, 'pink bold')
         if 'shortcuts' in cmd_info:
             shortcuts = cmd_info['shortcuts']
             st += ' (%s)' % Color.colorify((','.join(sorted(shortcuts))), 'green highlight')
@@ -1776,17 +1779,11 @@ class Set(Command):
 
 class FridaCli(object):
     def __init__(self):
-        try:
-            self.frida_device = frida.get_usb_device(5)
-            self.frida_device.on('lost', FridaCli.on_device_detached)
-        except:
-            log('remote frida device not found')
-            sys.exit(0)
-
-        self.frida_script = None
-
+        self.bind_device()
         self.cmd_manager = CommandManager(self)
         self.context_manager = ContextManager(self)
+
+        self.frida_script = None
 
     def start(self):
         self.cmd_manager.init()
@@ -1805,6 +1802,14 @@ class FridaCli(object):
             inp = six.moves.input().strip()
             if len(inp) > 0:
                 self.cmd_manager.handle_command(inp)
+
+    def bind_device(self, timeout=0):
+        try:
+            self.frida_device = frida.get_usb_device(timeout)
+            self.frida_device.on('lost', FridaCli.on_device_detached)
+            return True
+        except:
+            return False
 
     def hexdump(self, data, offset=0, ret='print'):
         b_to_h = lambda b: ' '.join('%02x' % i for i in six.iterbytes(b))
