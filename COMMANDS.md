@@ -1,24 +1,25 @@
 # Commands list
-|   command   |              short              |                                        info                                         |
-|-------------|---------------------------------|-------------------------------------------------------------------------------------|
-|  add        |                                 |  add offset from base 0x0 in arg0 with optional name for this target in other args  |
-|  attach     |  att                            |  attach to target package name in arg0 with target module name in arg1              |
-|  backtrace  |  bt                             |                                                                                     |
-|  destruct   |  des,ds                         |  read at address arg0 for len arg1 and optional depth arg2                          |
-|  disasm     |  d,dis                          |  disassemble the given hex payload in arg0 or a pointer in arg0 with len in arg1    |
-|  find       |  f,fi                           |  utilities to find stuffs                                                           |
-|  help       |  h                              |                                                                                     |
-|  hexdump    |  hd,hdump                       |  hexdump memory regions pointed by value in args for len in the last arg            |
-|  info       |  i,in                           |  get information about your target                                                  |
-|  memory     |  m,mem                          |  memory operations                                                                  |
-|  pack       |  pa                             |  pack value in arg0 to return a string usable with memory write                     |
-|  print      |  p,pr                           |                                                                                     |
-|  quit       |  q                              |                                                                                     |
-|  registers  |  r,reg,regs                     |  interact with registers                                                            |
-|  remove     |  del,delete,rem                 |  remove an offsets from targets list                                                |
-|  run        |  c,cont,continue,go,next,start  |  continue the execution of the process to the next target offset                    |
-|  session    |  s,ss                           |                                                                                     |
-|  set        |                                 |                                                                                     |
+|   command   |              short              |                                                           info                                                           |
+|-------------|---------------------------------|--------------------------------------------------------------------------------------------------------------------------|
+|  add        |                                 |  add offset from base 0x0 in arg0 with optional name for this target in other args                                       |
+|  attach     |  att                            |  attach to target package name in arg0 with target module name in arg1                                                   |
+|  backtrace  |  bt                             |                                                                                                                          |
+|  destruct   |  des,ds                         |  read at address arg0 for len arg1 and optional depth arg2                                                               |
+|  disasm     |  d,dis                          |  disassemble the given hex payload in arg0 or a pointer in arg0 with len in arg1                                         |
+|  find       |  f,fi                           |  utilities to find stuffs                                                                                                |
+|  help       |  h                              |                                                                                                                          |
+|  hexdump    |  hd,hdump                       |  hexdump memory regions pointed by value in args for len in the last arg                                                 |
+|  info       |  i,in                           |  get information about your target                                                                                       |
+|  memory     |  m,mem                          |  memory operations                                                                                                       |
+|  once       |  o,on                           |  add a callback for ptr target hit in arg0. the keyword 'init' can be used to do stuffs once module base is retrieved.   |
+|  pack       |  pa                             |  pack value in arg0 to return a string usable with memory write                                                          |
+|  print      |  p,pr                           |                                                                                                                          |
+|  quit       |  ex,exit,q                      |                                                                                                                          |
+|  registers  |  r,reg,regs                     |  interact with registers                                                                                                 |
+|  remove     |  del,delete,rem                 |  remove an offsets from targets list                                                                                     |
+|  run        |  c,cont,continue,go,next,start  |  continue the execution of the process to the next target offset                                                         |
+|  session    |  s,ss                           |                                                                                                                          |
+|  set        |                                 |                                                                                                                          |
 
 ---
 # add sub commands

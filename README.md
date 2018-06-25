@@ -26,6 +26,7 @@ frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 * disasm with capstone engine
 * multi hexdump ```hexdump $r0 $r1 $r5 256```
 * Android can attach to DT_INIT [read more here on my blog](http://www.giovanni-rocca.com/giving-yourself-a-window-to-debug-a-shared-library-before-dt_init-with-frida-on-android/)
+* allow to set callback for targets hit (see notes later)
 
 ##### checkout the [complete commands list](./COMMANDS.md)
 ##### or how to [improve and create new commands](./EXTENDING.md)
@@ -117,6 +118,32 @@ m w temp aa bb cc dd ee ff
 ```
 
 ## Some notes
+
+##### Target callbacks (``once``)
+
+One of the first stuck I met was to attach to a plt (i.e memcpy) so I decided to create the command once which can be used in a lot of way.
+Command once act more or less like gdb commands funcionality. We are so allowed to do something like:
+
+```
+once init
+-> enter one command per line. leave empty to remove an existing callback.
+-> type 'end' or 'done' or empty line to finish
+memcpy = find export memcpy libc.so
+add ptr memcpy
+end
+-> 2 commands added to init callback
+
+add 0x1000
+-> 0x1000 added to target offsets
+once 0x1000
+-> enter one command per line. leave empty to remove an existing callback.
+-> type 'end' or 'done' or empty line to finish
+hexdump $r0 $r1 $r2 128
+done
+-> 1 commands added to 0x1000 callback
+```
+
+A callback with N* commands can be added to any target and ``init`` keyword. Init callback is invoked as soon as target base is obtained from the device.
 
 ##### destruct
 

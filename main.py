@@ -25,6 +25,8 @@
 
 import atexit
 import binascii
+from threading import Thread
+
 import capstone
 import fcntl
 import frida
@@ -308,13 +310,21 @@ class ContextManager(object):
         self.target_package = ''
         self.target_module = ''
         self.target_offsets = {}
+        self.target_virtual_offsets = {}
         self.dtinit_target_offsets = {}
         self.values = {}
+        self.once = {}
 
     def add_target_offset(self, offset, name=''):
         if offset in self.target_offsets:
             return None
         self.target_offsets[offset] = name
+        return offset
+
+    def add_target_virtual_offset(self, offset):
+        if offset in self.target_virtual_offsets:
+            return None
+        self.target_virtual_offsets[offset] = offset
         return offset
 
     def add_dtinit_target_offset(self, offset, name=''):
@@ -335,6 +345,12 @@ class ContextManager(object):
             self.arch.capstone_mode = p_arch.capstone_mode
         return self.arch
 
+    def apply_once(self, what, once_arr):
+        if len(once_arr) is 0:
+            del self.once[what]
+        else:
+            self.once[what] = once_arr
+
     def apply_pointer_size(self, pointer_size):
         self.pointer_size = pointer_size
 
@@ -342,6 +358,20 @@ class ContextManager(object):
         self.target_offsets = {}
         self.context = None
         self.context_offset = 0x0
+
+    def is_offset_in_targets(self, offset):
+        return offset in self.target_offsets or \
+               offset in self.target_virtual_offsets or \
+               offset in self.dtinit_target_offsets
+
+    def on(self, what):
+        Thread(target=self.__on__, kwargs={'what': what}).start()
+
+    def __on__(self, *args, **kwargs):
+        what = kwargs['what']
+        if what in self.once:
+            for c in self.once[what]:
+                self._cli.cmd_manager.handle_command(c)
 
     def set_base(self, base):
         self.base = base
@@ -423,7 +453,12 @@ class ContextManager(object):
             for t in self.dtinit_target_offsets:
                 ext += 'add dtinit %s %s\n' % (str(t), self.target_offsets[t])
         if self.target_package is not '':
-            ext += '\nattach %s %s' % (self.target_package, self.target_module)
+            ext += 'attach %s %s\n' % (self.target_package, self.target_module)
+        if len(self.once) > 0:
+            for what, arr in self.once.items():
+                ext += 'once %s\n' % str(what)
+                ext += '\n'.join(arr)
+                ext += '\nend\n'
         if ext is not '':
             with open('.session', 'w') as f:
                 f.write(ext)
@@ -437,9 +472,26 @@ class ContextManager(object):
             return
         self.clean()
         with open('.session', 'r') as f:
-            f = f.read()
-            for l in f.split('\n'):
-                self._cli.cmd_manager.handle_command(l)
+            f = f.read().split('\n')
+            while len(f) > 0:
+                l = f.pop(0)
+                if l == '':
+                    continue
+                if l.startswith('once'):
+                    once_arr = []
+                    l = l.split(' ')
+                    what = l[1]
+                    while True:
+                        l = f.pop(0)
+                        if l == 'end':
+                            break
+                        once_arr.append(l)
+                    if what != 'init':
+                        what = int(what)
+                    self.once[what] = once_arr
+                    Once(self._cli).__once_result__([what, len(once_arr)])
+                else:
+                    self._cli.cmd_manager.handle_command(l)
 
 
 class Color:
@@ -564,9 +616,9 @@ class Add(Command):
 
     def __add_result__(self, result):
         if result[0] > 0:
-            log('%s added to target offsets' % Color.colorify('0x%x' % result, 'red highlight'))
+            log('%s added to target offsets' % Color.colorify('0x%x' % result[1], 'red highlight'))
         else:
-            log('%s is already on targets list' % Color.colorify('0x%x' % result, 'red highlight'))
+            log('%s is already on targets list' % Color.colorify('0x%x' % result[1], 'red highlight'))
 
     def __dtinit__(self, args):
         ptr = args[0]
@@ -582,9 +634,11 @@ class Add(Command):
                                                (Color.colorify('dtinit', 'green highlight'))))
 
     def __pointer__(self, args):
-        if self.cli.frida_script is not None and type(args[0]) is int:
-            self.cli.frida_script.exports.addv(args[0])
+        if self.cli.context_manager.add_target_virtual_offset(args[0]) is not None:
+            if self.cli.frida_script is not None:
+                self.cli.frida_script.exports.addv(args[0])
             return args[0]
+        return None
 
     def __pointer_result__(self, result):
         log('%s added to target offsets' % Color.colorify('0x%x' % result, 'red highlight'))
@@ -1409,6 +1463,52 @@ class Memory(Command):
             return None
 
 
+class Once(Command):
+    def get_command_info(self):
+        return {
+            'name': 'once',
+            'args': 1,
+            'shortcuts': [
+                'on', 'o'
+            ],
+            'info': 'add a callback for ptr target hit in arg0. the keyword \'init\' can be used to do stuffs once '
+                    'module base is retrieved. '
+        }
+
+    def __once__(self, args):
+        if args[0] != 'init':
+            if type(args[0]) is not int:
+                log('%s is not a valid offset' % Color.colorify(str(args[0]), 'blue highlight'))
+                return None
+            if not self.cli.context_manager.is_offset_in_targets(args[0]):
+                log('offset %s not found in targets list' % Color.colorify('0x%x' % args[0], 'red highlight'))
+                return None
+        log('enter one command per line. leave empty to remove an existing callback.')
+        log('type \'end\' or \'done\' or empty line to finish')
+        once_arr = []
+        while True:
+            inp = six.moves.input().strip()
+            if len(inp) == 0 or inp == 'end' or inp == 'done':
+                break
+            once_arr.append(inp)
+        self.cli.context_manager.apply_once(args[0], once_arr)
+        return [args[0], len(once_arr)]
+
+    def __once_result__(self, result):
+        if result[0] == 'init':
+            if result[1] > 0:
+                log('%s commands added to %s callback' % (Color.colorify(str(result[1]), 'blue highlight'),
+                                                          Color.colorify(result[0], 'red highlight')))
+            else:
+                log('callback removed for %s' % Color.colorify(result[0], 'red highlight'))
+        else:
+            if result[1] > 0:
+                log('%s commands added to %s callback' % (Color.colorify(str(result[1]), 'blue highlight'),
+                                                          Color.colorify('0x%x' % result[0], 'red highlight')))
+            else:
+                log('callback removed for %s' % Color.colorify('0x%x' % result[0], 'red highlight'))
+
+
 class Pack(Command):
     def get_command_info(self):
         return {
@@ -1551,7 +1651,7 @@ class Quit(Command):
             'name': 'quit',
             'args': 0,
             'shortcuts': [
-                'q'
+                'exit', 'ex', 'q'
             ]
         }
 
@@ -1828,6 +1928,7 @@ class FridaCli(object):
                     log('%s target base at %s' % (Color.colorify('leaked', 'green highlight'),
                                                   Color.colorify('0x%x' % cli.context_manager.get_base(),
                                                                  'red highlight')))
+                cli.context_manager.on('init')
             elif id == 1:
                 log('attached to %s' % Color.colorify(parts[1], 'red highlight'))
             elif id == 2:
@@ -1848,6 +1949,7 @@ class FridaCli(object):
                     [parts[4].encode('ascii', 'ignore'),
                      int(cli.context_manager.get_context()['pc']['value'], 16) - 32]))
                 Backtrace(cli).__backtrace_result__(json.loads(parts[3]))
+                cli.context_manager.on(int(parts[1]))
         else:
             log(message)
 
