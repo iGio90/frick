@@ -341,8 +341,10 @@ class ContextManager(object):
         if p_arch is not None and self.arch is not None:
             # copy capstone stuffs from previous arch, we could be in the point
             # we had set a cs arch/mode and p_arch will hold an abstract Arch with just cs info
-            self.arch.capstone_arch = p_arch.capstone_arch
-            self.arch.capstone_mode = p_arch.capstone_mode
+            if p_arch.capstone_arch is not None:
+                self.arch.capstone_arch = p_arch.capstone_arch
+            if p_arch.capstone_mode is not None:
+                self.arch.capstone_mode = p_arch.capstone_mode
         return self.arch
 
     def apply_once(self, what, once_arr):
