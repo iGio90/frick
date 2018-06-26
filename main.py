@@ -1779,11 +1779,13 @@ class Set(Command):
 
 class FridaCli(object):
     def __init__(self):
+        self.frida_device = None
+        self.frida_script = None
+
         self.bind_device()
         self.cmd_manager = CommandManager(self)
         self.context_manager = ContextManager(self)
 
-        self.frida_script = None
 
     def start(self):
         self.cmd_manager.init()
