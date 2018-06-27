@@ -1977,7 +1977,7 @@ class FridaCli(object):
                 Backtrace(cli).__backtrace_result__(json.loads(parts[3]))
                 cli.context_manager.on(int(parts[1]))
             elif id == 3:
-                printer.append('-%s thread started: \ttid: %s\ttarget: %s (%s)' %
+                printer.append('-%s thread started: %s\ttarget: %s (%s)' %
                                (Color.colorify('>', 'blue bold'),
                                 Color.colorify(parts[1], 'green highligh'),
                                 Color.colorify(parts[2], 'red highlight'),
