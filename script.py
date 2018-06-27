@@ -12,7 +12,7 @@ def get_script(module, offsets, dtinitOffsets):
         var cContext = null;
         var cOff = 0x0;
         var targets = {};
-
+        
         var linker = Process.findModuleByName('linker');
         if (linker !== null) {
             var isLoadingTarget = false;
@@ -56,6 +56,8 @@ def get_script(module, offsets, dtinitOffsets):
                                     for (var k in pTargets) {
                                         att(k, base.add(k));
                                     }
+                                    
+                                    postSetup();
                                 }                        
                             });
                         });
@@ -69,6 +71,7 @@ def get_script(module, offsets, dtinitOffsets):
                 for (var k in pTargets) {
                     att(k, base.add(k));
                 }
+                postSetup();
             }, 250);
         }
 
@@ -110,8 +113,24 @@ def get_script(module, offsets, dtinitOffsets):
                 sleep = true;
                 while(sleep) {
                     Thread.sleep(1);
-                }                    
+                }
             });
+        }
+        
+        function postSetup() {
+            var pthread_create_ptr = Module.findExportByName(null, 'pthread_create');
+            if (pthread_create_ptr !== null) {
+                var pthread_create = new NativeFunction(pthread_create_ptr, 'int', ['pointer', 'pointer', 'pointer', 'pointer']);
+                Interceptor.replace(pthread_create_ptr, new NativeCallback(function (a, b, c, d) {
+                    var ret = pthread_create(a, b, c, d);
+                    var dbgs = DebugSymbol.fromAddress(c);
+                    if (dbgs !== null && dbgs.moduleName === module) {
+                        var t_tid = Memory.readU16(Memory.readPointer(a).add(8));
+                        send('3:::' + t_tid + ':::' + c + ':::' + dbgs.name);
+                    }
+                    return ret;
+                }, 'int', ['pointer', 'pointer', 'pointer', 'pointer']));
+            }
         }
         
         rpc.exports = {

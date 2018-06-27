@@ -35,11 +35,29 @@ import six
 import struct
 import sys
 import termios
+import time
 
 import readline as readline
 
-from pprint import pprint
 from threading import Thread
+
+
+class Printer(Thread):
+    def __init__(self):
+        self.sleep = 1 / 10
+        self.lines = []
+
+        super().__init__(target=self.loop, daemon=True)
+        self.start()
+
+    def append(self, what):
+        self.lines.append(what)
+
+    def loop(self):
+        while True:
+            while len(self.lines) > 0:
+                print(self.lines.pop(0))
+            time.sleep(self.sleep)
 
 
 def log(what):
@@ -58,9 +76,9 @@ def log(what):
         except:
             ml = False
         if not ml:
-            print('-%s %s' % (apix, what))
+            printer.append('-%s %s' % (apix, what))
         else:
-            print(what)
+            printer.append(what)
         return
 
     t = type(what)
@@ -72,11 +90,11 @@ def log(what):
             v = hex((what + (1 << 32)) % (1 << 32))
         else:
             v = hex(what)
-        print('-%s %s (%s)' % (apix, Color.colorify(v, c), Color.colorify(str(what), 'bold')))
+        printer.append('-%s %s (%s)' % (apix, Color.colorify(v, c), Color.colorify(str(what), 'bold')))
     elif t is six.text_type:
-        print('-%s %s' % (apix, what.encode('ascii', 'ignore')))
+        printer.append('-%s %s' % (apix, what.encode('ascii', 'ignore')))
     else:
-        pprint(what)
+        printer.append(what)
 
 
 class Arch(object):
@@ -142,7 +160,7 @@ class CommandManager(object):
             reg = key[1:].lower()
             val = Registers(self.cli).__internal_write__(reg, value)
             if val is not None:
-                print('%s (%u)' % (Color.colorify('0x%x' % val, 'green highlight'), val))
+                printer.append('%s (%u)' % (Color.colorify('0x%x' % val, 'green highlight'), val))
             return val
 
         self.cli.context_manager.add_value(key, value)
@@ -441,7 +459,7 @@ class ContextManager(object):
                         p += ' -> %s' % Color.colorify(subs[i], 'red highligh')
                     else:
                         p += ' -> %s' % Color.colorify(subs[i], 'green highligh')
-            print(p)
+            printer.append(p)
 
     def save(self):
         if os.path.exists('.session'):
@@ -705,7 +723,7 @@ class Backtrace(Command):
                     name = b['name'] + ' '
                 if 'moduleName' in b and b['moduleName'] is not None:
                     name += '' + b['moduleName']
-                print('%s\t%s' % (Color.colorify(b['address'], 'red highlight'), name))
+                printer.append('%s\t%s' % (Color.colorify(b['address'], 'red highlight'), name))
 
     def __backtrace_store__(self, data):
         return None
@@ -839,7 +857,7 @@ class DisAssembler(Command):
 
     def __disasm_result__(self, result):
         self.cli.context_title('disasm')
-        print('\n'.join(result))
+        printer.append('\n'.join(result))
 
     def __disasm_store__(self, data):
         return None
@@ -975,13 +993,13 @@ class Hexdump(Command):
                     row += '\t\t' + h_rows[h_iter].pop(0)
                 if len(h_rows[h_iter]) == 0:
                     h_rows.pop(h_iter)
-                else :
+                else:
                     h_iter += 1
                 if h_iter == max or len(h_rows) <= h_iter:
                     f_rows.append(row)
                     h_iter = 0
                     row = ''
-            print('\n'.join(f_rows))
+            printer.append('\n'.join(f_rows))
 
     def __hexdump_store__(self, data):
         return None
@@ -1042,12 +1060,12 @@ class Info(Command):
 
     def _print_module(self, module):
         self.cli.context_title(module['name'])
-        print('name: %s\nbase: %s\nsize: %s (%s)' % (Color.colorify(module['name'], 'bold'),
+        printer.append('name: %s\nbase: %s\nsize: %s (%s)' % (Color.colorify(module['name'], 'bold'),
                                                      Color.colorify(module['base'], 'red highlight'),
                                                      Color.colorify('0x%x' % module['size'], 'green highlight'),
                                                      Color.colorify(str(module['size']), 'bold')))
         if 'path' in module:
-            print('path: %s' % Color.colorify(module['path'], 'highlight'))
+            printer.append('path: %s' % Color.colorify(module['path'], 'highlight'))
 
     def __ranges__(self, args):
         if len(args) > 0:
@@ -1077,12 +1095,12 @@ class Info(Command):
 
     def _print_range(self, range):
         self.cli.context_title(range['base'])
-        print('base: %s\nsize: %s (%s)\nprot: %s' % (Color.colorify(range['base'], 'red highlight'),
+        printer.append('base: %s\nsize: %s (%s)\nprot: %s' % (Color.colorify(range['base'], 'red highlight'),
                                                      Color.colorify('0x%x' % range['size'], 'green highlight'),
                                                      Color.colorify(str(range['size']), 'bold'),
                                                      Color.colorify(range['protection'], 'ping highlight')))
         if 'file' in range:
-            print('\npath: %s' % Color.colorify(range['file']['path'], 'highlight'))
+            printer.append('\npath: %s' % Color.colorify(range['file']['path'], 'highlight'))
 
 
 class Memory(Command):
@@ -1597,12 +1615,12 @@ class Registers(Command):
                     self.cli.context_manager.get_context()[reg] = v
                     return value
                 else:
-                    print('failed to write into register %s' % reg)
+                    printer.append('failed to write into register %s' % reg)
                     return None
             except Exception as e:
-                print('failed to write into register %s - %s' % (reg, e))
+                printer.append('failed to write into register %s - %s' % (reg, e))
                 return None
-        print('%s - register not found' % (Color.colorify(reg, 'bold')))
+        printer.append('%s - register not found' % (Color.colorify(reg, 'bold')))
         return None
 
     def __registers__(self, args):
@@ -1616,7 +1634,7 @@ class Registers(Command):
         return self.__internal_write__(reg, args[1])
 
     def __write_result__(self, result):
-        print('%s (%u)' % (Color.colorify('0x%x' % result, 'green highlight'), result))
+        printer.append('%s (%u)' % (Color.colorify('0x%x' % result, 'green highlight'), result))
 
 
 class Remove(Command):
@@ -1786,7 +1804,6 @@ class FridaCli(object):
         self.cmd_manager = CommandManager(self)
         self.context_manager = ContextManager(self)
 
-
     def start(self):
         self.cmd_manager.init()
         log('%s started - GL HF!' % Color.colorify('frick', 'green highligh'))
@@ -1883,7 +1900,7 @@ class FridaCli(object):
         if len(result) > 0:
             if ret == 'print':
                 self.context_title('0x%x' % offset)
-                print('\n'.join(result))
+                printer.append('\n'.join(result))
             elif ret == 'return':
                 return result
 
@@ -1901,7 +1918,7 @@ class FridaCli(object):
     def context_title(m):
         row, cols = FridaCli.get_terminal_size()
         if not m:
-            print(Color.colorify('-' * cols, 'blue bold'))
+            printer.append(Color.colorify('-' * cols, 'blue bold'))
         else:
             trail_len = len(m) + 8
             title = ""
@@ -1910,7 +1927,7 @@ class FridaCli(object):
             title += Color.colorify(m, 'highlight')
             title += Color.colorify(" ]{:{padd}<4}".format("", padd='-'),
                                     attrs='blue highlight')
-            print(title)
+            printer.append(title)
 
     @staticmethod
     def on_frida_message(message, data):
@@ -1959,6 +1976,12 @@ class FridaCli(object):
                      int(cli.context_manager.get_context()['pc']['value'], 16) - 32]))
                 Backtrace(cli).__backtrace_result__(json.loads(parts[3]))
                 cli.context_manager.on(int(parts[1]))
+            elif id == 3:
+                printer.append('-%s thread started: \ttid: %s\ttarget: %s (%s)' %
+                               (Color.colorify('>', 'blue bold'),
+                                Color.colorify(parts[1], 'green highligh'),
+                                Color.colorify(parts[2], 'red highlight'),
+                                parts[3]))
         else:
             log(message)
 
@@ -1973,6 +1996,7 @@ class FridaCli(object):
 
 
 if __name__ == '__main__':
-    global cli
+    global cli, printer
     cli = FridaCli()
+    printer = Printer()
     cli.start()
