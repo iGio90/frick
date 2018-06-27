@@ -8,6 +8,8 @@ frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 
 ![Alt text](https://image.ibb.co/fjSUvJ/Schermata_2018_06_18_alle_11_15_43.png "frick")
 
+![Alt text](https://image.ibb.co/gObi78/Screenshot_from_2018_06_27_09_51_27.png "frick")
+
 
 ### Features for the eyes
 * interactive commands with shortcuts 
@@ -27,6 +29,7 @@ frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 * multi hexdump ```hexdump $r0 $r1 $r5 256```
 * Android can attach to DT_INIT [read more here on my blog](http://www.giovanni-rocca.com/giving-yourself-a-window-to-debug-a-shared-library-before-dt_init-with-frida-on-android/)
 * allow to set callback for targets hit (see notes later)
+* pthread creation notification highlighting target routine
 
 ##### checkout the [complete commands list](./COMMANDS.md)
 ##### or how to [improve and create new commands](./EXTENDING.md)
