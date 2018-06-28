@@ -1,6 +1,7 @@
-# frick
+More or less a great attempt to make reverse engineering fun++ && pain_in_the_ass--
 
-frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init gef by @hugsy, with commands design similar to uDdbg.
+---
+
 
 ![Alt text](https://image.ibb.co/j8Wa5J/Schermata_2018_06_19_alle_21_06_41.png "frick") 
 
@@ -33,6 +34,7 @@ frick is a kick ass frida cli for reverse engineer inspired by the epic GDB init
 
 ##### checkout the [complete commands list](./COMMANDS.md)
 ##### or how to [improve and create new commands](./EXTENDING.md)
+##### or join our [slack](https://join.slack.com/t/resecret/shared_invite/enQtMzc1NTg4MzE3NjA1LTlkNzYxNTIwYTc2ZTYyOWY1MTQ1NzBiN2ZhYjQwYmY0ZmRhODQ0NDE3NmRmZjFiMmE1MDYwNWJlNDVjZDcwNGE)
 
 
 ### TLDR;

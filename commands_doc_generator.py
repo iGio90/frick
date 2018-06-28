@@ -4,7 +4,7 @@ import sys
 from main import Command
 
 writer = pytablewriter.MarkdownTableWriter()
-writer.table_name = "Commands list"
+writer.table_name = "commands list"
 writer.header_list = ["command", "short", "info"]
 writer.value_matrix = []
 writer.margin = 2

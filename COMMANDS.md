@@ -1,4 +1,4 @@
-# Commands list
+# commands list
 |   command   |              short              |                                                           info                                                           |
 |-------------|---------------------------------|--------------------------------------------------------------------------------------------------------------------------|
 |  add        |                                 |  add offset from base 0x0 in arg0 with optional name for this target in other args                                       |
