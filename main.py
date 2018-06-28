@@ -31,11 +31,13 @@ import frida
 import json
 import os
 import script
+import shutil
 import six
 import struct
 import sys
 import termios
 import time
+import webbrowser
 
 import readline as readline
 
@@ -463,6 +465,7 @@ class ContextManager(object):
 
     def save(self):
         if os.path.exists('.session'):
+            shutil.copy('.session', '.session_old')
             os.remove('.session')
         ext = ''
         if self._cli.context_manager.get_arch() is not None:
@@ -1728,12 +1731,28 @@ class Session(Command):
                     'shortcuts': [
                         'l', 'ld'
                     ]
+                },
+                {
+                    'name': 'open',
+                    'info': 'edit session file with text editor',
+                    'shortcuts': [
+                        'o', 'op'
+                    ]
                 }
             ]
         }
 
     def __load__(self, args):
         self.cli.context_manager.load()
+        return None
+
+    def __open__(self, args):
+        if os.path.exists('.session'):
+            editor = os.getenv('EDITOR')
+            if editor:
+                os.system(editor + ' ' + '.session')
+            else:
+                webbrowser.open('.session')
         return None
 
     def __save__(self, args):

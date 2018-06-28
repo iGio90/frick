@@ -75,6 +75,7 @@
 |  command  |  short  |                                           info                                           |
 |-----------|---------|------------------------------------------------------------------------------------------|
 |  load     |  l,ld   |  load session from previously saved information                                          |
+|  open     |  o,op   |  edit session file with text editor                                                      |
 |  save     |  s,sv   |  saves current target offsets, package and module to be immediatly executed with 'load'  |
 
 # set sub commands
