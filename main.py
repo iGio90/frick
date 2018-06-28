@@ -465,6 +465,9 @@ class ContextManager(object):
         if os.path.exists('.session'):
             os.remove('.session')
         ext = ''
+        if self._cli.context_manager.get_arch() is not None:
+            ext += 'set cs arch ' + str(self._cli.context_manager.get_arch().get_capstone_arch()) + '\n'
+            ext += 'set cs mode ' + str(self._cli.context_manager.get_arch().get_capstone_mode()) + '\n'
         if len(self.target_offsets) > 0:
             for t in self.target_offsets:
                 ext += 'add %s %s\n' % (str(t), self.target_offsets[t])
@@ -494,7 +497,7 @@ class ContextManager(object):
             f = f.read().split('\n')
             while len(f) > 0:
                 l = f.pop(0)
-                if l == '':
+                if l == '' or l.startswith('#'):
                     continue
                 if l.startswith('once'):
                     once_arr = []
@@ -831,6 +834,7 @@ class DisAssembler(Command):
         else:
             cs = capstone.Cs(self.cli.context_manager.get_arch().get_capstone_arch(),
                              self.cli.context_manager.get_arch().get_capstone_mode())
+            l = 0
             if type(args[0]) is str:
                 b = binascii.unhexlify(args[0])
                 off = 0
@@ -846,7 +850,12 @@ class DisAssembler(Command):
                 b = Memory(self.cli)._internal_read_data_(args[0], l)[1]
                 off = args[0]
             ret = []
+            t_s = 0
             for i in cs.disasm(b, off):
+                if l > 0:
+                    t_s += i.size
+                    if t_s > l:
+                        break
                 faddr = '0x%x' % i.address
                 if self.cli.context_manager.get_context() is not None:
                     pc = int(self.cli.context_manager.get_context()['pc']['value'], 16)
@@ -1768,6 +1777,12 @@ class Set(Command):
         }
 
     def __arch__(self, args):
+        if type(args[0]) is int:
+            if self.cli.context_manager.get_arch() is None:
+                self.cli.context_manager.set_arch(Arch())
+            self.cli.context_manager.get_arch().set_capstone_arch(args[0])
+            return args[0]
+
         arch_list = [k for k, v in capstone.__dict__.items() if not k.startswith("__") and k.startswith("CS_ARCH")]
         if type(args[0]) is str:
             __arch_test = 'CS_ARCH_%s' % args[0].upper()
@@ -1781,6 +1796,12 @@ class Set(Command):
         log(' '.join(sorted(arch_list)).replace('CS_ARCH_', '').lower())
 
     def __mode__(self, args):
+        if type(args[0]) is int:
+            if self.cli.context_manager.get_arch() is None:
+                self.cli.context_manager.set_arch(Arch())
+            self.cli.context_manager.get_arch().set_capstone_mode(args[0])
+            return args[0]
+
         mode_list = [k for k, v in capstone.__dict__.items() if not k.startswith("__") and k.startswith("CS_MODE")]
         if type(args[0]) is str:
             __mode_test = 'CS_MODE_%s' % args[0].upper()
@@ -1790,6 +1811,7 @@ class Set(Command):
                 __mode = getattr(capstone, __mode_test)
                 self.cli.context_manager.get_arch().set_capstone_mode(__mode)
                 return __mode
+
         log('mode not found. use one of:')
         log(' '.join(sorted(mode_list)).replace('CS_MODE_', '').lower())
         return None
@@ -1975,7 +1997,7 @@ class FridaCli(object):
                     [parts[4].encode('ascii', 'ignore'),
                      int(cli.context_manager.get_context()['pc']['value'], 16) - 32]))
                 Backtrace(cli).__backtrace_result__(json.loads(parts[3]))
-                cli.context_manager.on(int(parts[1]))
+                Thread(target=cli.context_manager.on, args=(int(parts[1]),))
             elif id == 3:
                 printer.append('-%s thread started: %s\ttarget: %s (%s)' %
                                (Color.colorify('>', 'blue bold'),

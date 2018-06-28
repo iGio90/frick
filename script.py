@@ -96,7 +96,7 @@ def get_script(module, offsets, dtinitOffsets):
             var sbt = Thread.backtrace(cContext, Backtracer.ACCURATE).map(DebugSymbol.fromAddress);
             var tds = []
             try {
-                tds = Memory.readByteArray(cContext.pc.sub(32), 64);
+                tds = Memory.readByteArray(cContext.pc.sub(32), 56);
             } catch(err) {}
             send('2:::' + cOff + ':::' + JSON.stringify(context) + ':::' + JSON.stringify(sbt) + ':::' + bytesToHex(tds));
         }
