@@ -12,6 +12,7 @@ def get_script(module, offsets, dtinitOffsets):
         var cContext = null;
         var cOff = 0x0;
         var targets = {};
+        var nfs = {};
         
         var linker = Process.findModuleByName('linker');
         if (linker !== null) {
@@ -98,7 +99,8 @@ def get_script(module, offsets, dtinitOffsets):
             try {
                 tds = Memory.readByteArray(cContext.pc.sub(32), 56);
             } catch(err) {}
-            send('2:::' + cOff + ':::' + JSON.stringify(context) + ':::' + JSON.stringify(sbt) + ':::' + bytesToHex(tds));
+            send('2:::' + cOff + ':::' + JSON.stringify(context) + ':::' + 
+                JSON.stringify(sbt) + ':::' + bytesToHex(tds));
         }
         
         function att(off, pt) {
@@ -120,7 +122,8 @@ def get_script(module, offsets, dtinitOffsets):
         function postSetup() {
             var pthread_create_ptr = Module.findExportByName(null, 'pthread_create');
             if (pthread_create_ptr !== null) {
-                var pthread_create = new NativeFunction(pthread_create_ptr, 'int', ['pointer', 'pointer', 'pointer', 'pointer']);
+                var pthread_create = new NativeFunction(pthread_create_ptr, 'int', 
+                    ['pointer', 'pointer', 'pointer', 'pointer']);
                 Interceptor.replace(pthread_create_ptr, new NativeCallback(function (a, b, c, d) {
                     var ret = pthread_create(a, b, c, d);
                     var dbgs = DebugSymbol.fromAddress(c);
@@ -190,6 +193,21 @@ def get_script(module, offsets, dtinitOffsets):
                     m = JSON.stringify(m);
                 }
                 return m;            
+            },
+            gnf: function(p, r, a) {
+                try {
+                    p = ptr(p);
+                    var nf = new NativeFunction(p, r, a);
+                    var dbgs = DebugSymbol.fromAddress(p);
+                    var nf_o = {'a': a, 'nf': nf, 'dbgs': dbgs}
+                    nfs[nf + ''] = nf_o;
+                    if (dbgs.name !== null && dbgs.name !== '') {
+                        nfs[dbgs.name] = nf_o;
+                    }
+                    return JSON.stringify(nf_o);
+                } catch (err) {
+                    return err.toString();
+                }
             },
             ivp: function(p) {
                 try {
@@ -262,6 +280,45 @@ def get_script(module, offsets, dtinitOffsets):
                 } catch(err) {
                     return null;
                 }
+            },
+            rnf: function(p, a) {
+                try {
+                    p = ptr(p) + '';
+                } catch(err) {}
+                
+                var nf = nfs[p];
+                if (nf !== null && typeof nf !== 'undefined') {
+                    if (a.length !== nf['a'].length) {
+                        return null;
+                    }
+                    
+                    for (var k=0;k<nf['a'].length;k++) {
+                        if (nf['a'][k] === 'pointer') {
+                            a[k] = ptr(a[k]);
+                        }
+                    }
+                    
+                    nf = nf['nf'];
+                    
+                    // if someone come up with a better solution please....
+                    switch(a.length) {
+                        case 0:
+                            return nf();
+                        case 1:
+                            return nf(a[0]);
+                        case 2:
+                            return nf(a[0], a[1]);
+                        case 3:
+                            return nf(a[0], a[1], a[2]);
+                        case 4:
+                            return nf(a[0], a[1], a[2], a[3]);
+                        case 5:
+                            return nf(a[0], a[1], a[2], a[3], a[4]);
+                        case 6:
+                            return nf(a[0], a[1], a[2], a[3], a[4], a[5]);
+                    }
+                }
+                return null;
             },
             rmt: function(p) {
                 p = base.add(p);

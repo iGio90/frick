@@ -216,6 +216,8 @@ class CommandManager(object):
         ret = []
         for i in range(0, len(args)):
             ev = self.try_eval(args[i])
+            if type(ev) is not int and type(ev) is not str:
+                ev = args[i]
             if str(ev).startswith('0x'):
                 try:
                     ev = int(args[i], 16)
@@ -231,9 +233,9 @@ class CommandManager(object):
                     tst = ev[i + 1:i + 4].lower()
                     if tst in self.cli.context_manager.get_context():
                         ev = ev.replace('$%s' % tst, self.cli.context_manager.get_context()[tst]['value'])
+                    ev = self.try_eval(ev)
                 except:
                     break
-            ev = self.try_eval(ev)
 
             c_val = self.cli.context_manager.get_value(str(ev))
             if c_val is not None:
@@ -477,13 +479,13 @@ class ContextManager(object):
         if len(self.target_offsets) > 0:
             for t in self.dtinit_target_offsets:
                 ext += 'add dtinit %s %s\n' % (str(t), self.target_offsets[t])
-        if self.target_package is not '':
-            ext += 'attach %s %s\n' % (self.target_package, self.target_module)
         if len(self.once) > 0:
             for what, arr in self.once.items():
                 ext += 'once %s\n' % str(what)
                 ext += '\n'.join(arr)
                 ext += '\nend\n'
+        if self.target_package is not '':
+            ext += 'attach %s %s\n' % (self.target_package, self.target_module)
         if ext is not '':
             with open('.session', 'w') as f:
                 f.write(ext)
@@ -882,7 +884,7 @@ class Find(Command):
             'args': 1,
             'info': 'utilities to find stuffs',
             'shortcuts': [
-                'f', 'fi'
+                'fi'
             ],
             'sub': [
                 {
@@ -895,6 +897,9 @@ class Find(Command):
         }
 
     def __export__(self, args):
+        if self.cli.frida_script is None:
+            return None
+
         module = self.cli.context_manager.get_target_module()
         if len(args) > 1:
             module = args[1]
@@ -907,6 +912,74 @@ class Find(Command):
 
     def __export_store__(self, data):
         return int(data[1], 16)
+
+
+class Function(Command):
+    def get_command_info(self):
+        return {
+            'name': 'function',
+            'shortcuts': [
+                'funct', 'fn', 'fu'
+            ],
+            'info': 'list native functions',
+            'sub': [
+                {
+                    'name': 'add',
+                    'info': 'add a native function with pointer in arg0, '
+                            'return type in arg1 followed by args type if any',
+                    'args': 2,
+                    'shortcuts': ['a']
+                },
+                {
+                    'name': 'run',
+                    'info': 'run native function pointed by arg0 followed by function args',
+                    'args': 1,
+                    'shortcuts': ['r']
+                }
+            ]
+        }
+
+    def __function__(self, args):
+        pass
+
+    def __add__(self, args):
+        if self.cli.frida_script is not None:
+            ptr = args[0]
+            ret_type = args[1]
+
+            ret = self.cli.frida_script.exports.gnf(ptr, ret_type, args[2:])
+            try:
+                return int(ret, 16)
+            except:
+                return ret
+
+    def __add_result__(self, result):
+        if result is None:
+            return result
+        result = json.loads(result)
+        name = result['dbgs']['name']
+        if name is not '':
+            name = Color.colorify(name, 'green highlight')
+        module_name = result['dbgs']['moduleName']
+        if module_name is not '':
+            if name is not '':
+                name += ' - ' + module_name
+            else:
+                name = module_name
+        log('%s (%s)' % (Color.colorify(result['nf'], 'red highlight'), name))
+
+    def __add_store__(self, result):
+        if result is None:
+            return result
+        result = json.loads(result)
+        return int(result['nf'], 16)
+
+    def __run__(self, args):
+        ptr = args[0]
+        return self.cli.frida_script.exports.rnf(ptr, args[1:])
+
+    def __run_result__(self, result):
+        log(result)
 
 
 class Help(Command):
@@ -1491,8 +1564,12 @@ class Memory(Command):
         return data[1]
 
     def __write__(self, args):
+        ptr = args[0]
+        args = args[1:]
+        for a in range(0, len(args)):
+            args[a] = str(args[a])
         try:
-            return int(self.cli.frida_script.exports.mw(args[0], ''.join(args[1:])), 16)
+            return int(self.cli.frida_script.exports.mw(ptr, ''.join(args[1:])), 16)
         except Exception as e:
             log('failed to write data to device: %s' % e)
             return None
@@ -1564,7 +1641,7 @@ class Pack(Command):
                     c = '0'
                 l += '%s%x' % (c, a)
             elif type(a) is str:
-                l += binascii.hexlify(a)
+                l += binascii.hexlify(a.encode('utf8')).decode('utf8')
         r = [l[i:i + 2] for i in range(0, len(l), 2)]
         return ' '.join(r)
 
@@ -1872,6 +1949,16 @@ class FridaCli(object):
             return False
 
     def hexdump(self, data, offset=0, ret='print'):
+        if type(offset) is str:
+            try:
+                offset = int(offset, 16)
+            except:
+                try:
+                    offset = int(offset)
+                except:
+                    log('invalid offset: %s' % offset)
+                    return None
+
         b_to_h = lambda b: ' '.join('%02x' % i for i in six.iterbytes(b))
         result = []
         while len(data) > 0:
