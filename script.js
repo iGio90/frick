@@ -102,6 +102,7 @@ function att(off, pt) {
         cOff = off;
         sendContext();
         sleep = true;
+
         while(sleep) {
             Thread.sleep(1);
         }
@@ -123,6 +124,63 @@ function postSetup() {
             return ret;
         }, 'int', ['pointer', 'pointer', 'pointer', 'pointer']));
     }
+}
+
+function readThreads() {
+    var m_alloc = Memory.alloc(1024);
+    Memory.protect(m_alloc, 1024, 'rwx');
+
+    var opendir = nf(getnf('opendir', 'libc.so', 'pointer', ['pointer']));
+    var readdir = nf(getnf('readdir', 'libc.so', 'pointer', ['pointer']));
+    var fopen = nf(getnf('fopen', 'libc.so', 'pointer', ['pointer', 'pointer']));
+    var fgets = nf(getnf('fgets', 'libc.so', 'pointer', ['pointer', 'int', 'pointer']));
+
+    Memory.writeUtf8String(m_alloc, '/proc/self/task');
+
+    var proc_dir = opendir(m_alloc);
+    var entry;
+    var res = [];
+
+    while ((entry = readdir(proc_dir)) > 0) {
+        var line = Memory.readUtf8String(entry.add(19));
+        if (line.indexOf('.') >= 0) {
+            continue;
+        }
+        Memory.writeUtf8String(m_alloc, '/proc/' + pid + '/task/' + line + '/stat');
+        Memory.writeUtf8String(m_alloc.add(64), 'r');
+        var fp = fopen(m_alloc, m_alloc.add(64));
+        try {
+            line = Memory.readUtf8String(fgets(m_alloc, 1024, fp));
+            var name = line.substring(line.indexOf('('), 1 + line.indexOf(')'));
+            line = line.replace(' ' + name, '');
+            var proc = line.split(' ');
+            proc.splice(1, 0, name.replace('(', '').replace(')', ''));
+            res.push(proc);
+        } catch (e) {
+            console.log('e1 -> ' + e);
+        }
+    }
+    return res;
+}
+
+function nf(n) {
+    return n['nf'];
+}
+
+function getnf(n, m, r, a) {
+    var p = Module.findExportByName(m, n);
+    return getnfp(p, r, a);
+}
+
+function getnfp(p, r, a) {
+    var nf = new NativeFunction(p, r, a);
+    var dbgs = DebugSymbol.fromAddress(p);
+    var nf_o = {'a': a, 'nf': nf, 'dbgs': dbgs};
+    nfs[nf + ''] = nf_o;
+    if (dbgs.name !== null && dbgs.name !== '') {
+        nfs[dbgs.name] = nf_o;
+    }
+    return nf_o;
 }
 
 rpc.exports = {
@@ -186,14 +244,7 @@ rpc.exports = {
     gnf: function(p, r, a) {
         try {
             p = ptr(p);
-            var nf = new NativeFunction(p, r, a);
-            var dbgs = DebugSymbol.fromAddress(p);
-            var nf_o = {'a': a, 'nf': nf, 'dbgs': dbgs}
-            nfs[nf + ''] = nf_o;
-            if (dbgs.name !== null && dbgs.name !== '') {
-                nfs[dbgs.name] = nf_o;
-            }
-            return JSON.stringify(nf_o);
+            return JSON.stringify(getnfp(p, r, a));
         } catch (err) {
             return err.toString();
         }

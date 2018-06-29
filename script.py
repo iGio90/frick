@@ -1,5 +1,6 @@
-def get_script(module, offsets, dtinitOffsets):
-    js = 'var module = "' + module + '";'
+def get_script(pid, module, offsets, dtinitOffsets):
+    js = 'var pid = ' + str(pid) + ';'
+    js += 'var module = "' + module + '";'
     js += 'var pTargets = {};'
     js += 'var dtInitTargets = {};'
     for k, v in offsets.items():

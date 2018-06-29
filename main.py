@@ -695,6 +695,7 @@ class Attach(Command):
         process = self.cli.frida_device.attach(pid)
         log("frida %s" % Color.colorify('attached', 'bold'))
         self.cli.frida_script = process.create_script(script.get_script(
+            pid,
             module,
             self.cli.context_manager.get_target_offsets(),
             self.cli.context_manager.get_dtinit_target_offsets()
