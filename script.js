@@ -77,19 +77,22 @@ function sendContext() {
         try {
             var rr = Memory.readPointer(what);
             context[reg]['sub'] = [rr];
-            while(true) {
+            for (var k=0;k<8;k++) {
                 rr = Memory.readPointer(rr);
                 context[reg]['sub'].push(rr);
             }
         } catch(err) {}
     }
+    send('2:::' + cOff + ':::' + JSON.stringify(context));
+}
+
+function sendHookInfo() {
     var sbt = Thread.backtrace(cContext, Backtracer.ACCURATE).map(DebugSymbol.fromAddress);
     var tds = [];
     try {
         tds = Memory.readByteArray(cContext.pc.sub(32), 56);
     } catch(err) {}
-    send('2:::' + cOff + ':::' + JSON.stringify(context) + ':::' +
-        JSON.stringify(sbt) + ':::' + bytesToHex(tds));
+    send('4:::' + cOff + ':::' + JSON.stringify(sbt) + ':::' + bytesToHex(tds))
 }
 
 function att(off, pt) {
@@ -101,6 +104,7 @@ function att(off, pt) {
         cContext = this.context;
         cOff = off;
         sendContext();
+        sendHookInfo();
         sleep = true;
 
         while(sleep) {

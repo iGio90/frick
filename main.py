@@ -2099,18 +2099,19 @@ class FridaCli(object):
                 else:
                     cli.context_title('0x%x' % (cli.context_manager.get_context_offset()))
                 cli.context_manager.print_context()
-                dis = DisAssembler(cli)
-                dis.__disasm_result__(dis.__disasm__(
-                    [parts[4].encode('ascii', 'ignore'),
-                     int(cli.context_manager.get_context()['pc']['value'], 16) - 32]))
-                Backtrace(cli).__backtrace_result__(json.loads(parts[3]))
-                Thread(target=cli.context_manager.on, args=(int(parts[1]),))
             elif id == 3:
                 printer.append('-%s thread started: %s\ttarget: %s (%s)' %
                                (Color.colorify('>', 'blue bold'),
                                 Color.colorify(parts[1], 'green highligh'),
                                 Color.colorify(parts[2], 'red highlight'),
                                 parts[3]))
+            elif id == 4:
+                dis = DisAssembler(cli)
+                dis.__disasm_result__(dis.__disasm__(
+                    [parts[3].encode('ascii', 'ignore'),
+                     int(cli.context_manager.get_context()['pc']['value'], 16) - 32]))
+                Backtrace(cli).__backtrace_result__(json.loads(parts[2]))
+                Thread(target=cli.context_manager.on, args=(int(parts[1]),))
         else:
             log(message)
 
