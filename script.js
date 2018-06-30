@@ -4,6 +4,7 @@ var cContext = null;
 var cOff = 0x0;
 var targets = {};
 var nfs = {};
+var nfs_n = {};
 
 var linker = Process.findModuleByName('linker');
 if (linker !== null) {
@@ -114,10 +115,15 @@ function att(off, pt) {
 }
 
 function postSetup() {
+    nf(getnf('opendir', 'libc.so', 'pointer', ['pointer']));
+    nf(getnf('readdir', 'libc.so', 'pointer', ['pointer']));
+    nf(getnf('fopen', 'libc.so', 'pointer', ['pointer', 'pointer']));
+    nf(getnf('fgets', 'libc.so', 'pointer', ['pointer', 'int', 'pointer']));
+
     var pthread_create_ptr = Module.findExportByName(null, 'pthread_create');
     if (pthread_create_ptr !== null) {
-        var pthread_create = new NativeFunction(pthread_create_ptr, 'int',
-            ['pointer', 'pointer', 'pointer', 'pointer']);
+        var pthread_create = nf(getnf('pthread_create', 'libc.so', 'int', ['pointer', 'pointer', 'pointer', 'pointer']));
+
         Interceptor.replace(pthread_create_ptr, new NativeCallback(function (a, b, c, d) {
             var ret = pthread_create(a, b, c, d);
             var dbgs = DebugSymbol.fromAddress(c);
@@ -179,73 +185,73 @@ function getnf(n, m, r, a) {
 function getnfp(p, r, a) {
     var nf = new NativeFunction(p, r, a);
     var dbgs = DebugSymbol.fromAddress(p);
-    var nf_o = {'a': a, 'nf': nf, 'dbgs': dbgs};
+    var nf_o = {'a': a, 'nf': nf, 'dbgs': dbgs, 'r': r};
     nfs[nf + ''] = nf_o;
     if (dbgs.name !== null && dbgs.name !== '') {
-        nfs[dbgs.name] = nf_o;
+        nfs_n[dbgs.name] = p;
     }
     return nf_o;
 }
 
 rpc.exports = {
-    add: function(what) {
+    add: function (what) {
         att(what, base.add(what));
     },
-    addv: function(what) {
+    addv: function (what) {
         att(what, ptr(what));
     },
-    bt: function() {
+    bt: function () {
         return Thread.backtrace(cContext, Backtracer.ACCURATE).map(DebugSymbol.fromAddress);
     },
-    c: function() {
+    c: function () {
         sleep = false;
     },
-    ems: function() {
+    ems: function () {
         var m = Process.enumerateModulesSync();
         if (m != null) {
             m = JSON.stringify(m);
         }
         return m;
     },
-    ers: function() {
+    ers: function () {
         var m = Process.enumerateRangesSync('---');
         if (m != null) {
             m = JSON.stringify(m);
         }
         return m;
     },
-    ets: function() {
+    ets: function () {
         var m = Process.enumerateThreadsSync();
         if (m != null) {
             m = JSON.stringify(m);
         }
         return m;
     },
-    fexbn: function(a, b) {
+    fexbn: function (a, b) {
         return Module.findExportByName(a, b);
     },
-    fmba: function(w) {
+    fmba: function (w) {
         var m = Process.findModuleByAddress(ptr(w));
         if (m != null) {
             m = JSON.stringify(m);
         }
         return m;
     },
-    fmbn: function(w) {
+    fmbn: function (w) {
         var m = Process.findModuleByName(w);
         if (m != null) {
             m = JSON.stringify(m);
         }
         return m;
     },
-    frba: function(w) {
+    frba: function (w) {
         var m = Process.findRangeByAddress(ptr(w));
         if (m != null) {
             m = JSON.stringify(m);
         }
         return m;
     },
-    gnf: function(p, r, a) {
+    gnf: function (p, r, a) {
         try {
             p = ptr(p);
             return JSON.stringify(getnfp(p, r, a));
@@ -253,69 +259,72 @@ rpc.exports = {
             return err.toString();
         }
     },
-    ivp: function(p) {
+    ivp: function (p) {
         try {
             Memory.readPointer(ptr(p));
             return true;
-        } catch(err) {
+        } catch (err) {
             return false;
         }
     },
-    mal: function(l) {
+    mal: function (l) {
         return Memory.alloc(l);
     },
-    mprot: function(p, l, f) {
+    mprot: function (p, l, f) {
         try {
             p = ptr(p);
             Memory.protect(p, l, f);
             return p;
-        } catch(err) {
+        } catch (err) {
             return null;
         }
     },
-    mr: function(p, l) {
+    mr: function (p, l) {
         try {
             return Memory.readByteArray(ptr(p), l);
-        } catch(err) {
+        } catch (err) {
             return null;
         }
     },
-    mru8s: function(p, l) {
+    mru8s: function (p, l) {
         try {
             return Memory.readUtf8String(ptr(p), l);
-        } catch(err) {
+        } catch (err) {
             return null;
         }
     },
-    mru16s: function(p, l) {
+    mru16s: function (p, l) {
         try {
             return Memory.readUtf16String(ptr(p), l);
-        } catch(err) {
+        } catch (err) {
             return null;
         }
     },
-    mrans: function(p, l) {
+    mrans: function (p, l) {
         try {
             return Memory.readAnsiString(ptr(p), l);
-        } catch(err) {
+        } catch (err) {
             return null;
         }
     },
-    mracs: function(p, l) {
+    mracs: function (p, l) {
         try {
             return Memory.readCString(ptr(p), l);
-        } catch(err) {
+        } catch (err) {
             return null;
         }
     },
-    mw: function(p, w) {
+    mw: function (p, w) {
         try {
             p = ptr(p);
             Memory.writeByteArray(p, hexToBytes(w));
             return p;
-        } catch(err) {
+        } catch (err) {
             return null;
         }
+    },
+    nfl: function() {
+        return JSON.stringify(nfs);
     },
     rp: function(p) {
         try {
@@ -328,6 +337,10 @@ rpc.exports = {
         try {
             p = ptr(p) + '';
         } catch(err) {}
+
+        if (typeof p === 'string') {
+            p = nfs_n[p];
+        }
 
         var nf = nfs[p];
         if (nf !== null && typeof nf !== 'undefined') {

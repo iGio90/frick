@@ -918,9 +918,9 @@ class Find(Command):
 class Function(Command):
     def get_command_info(self):
         return {
-            'name': 'function',
+            'name': 'functions',
             'shortcuts': [
-                'funct', 'fn', 'fu'
+                'function', 'funct', 'func', 'fun', 'fn', 'fu'
             ],
             'info': 'list native functions',
             'sub': [
@@ -940,8 +940,32 @@ class Function(Command):
             ]
         }
 
-    def __function__(self, args):
-        pass
+    def __functions__(self, args):
+        if self.cli.frida_script is None:
+            return None
+        return json.loads(self.cli.frida_script.exports.nfl())
+
+    def __functions_result__(self, result):
+        self.cli.context_title('functions list')
+        for f in result:
+            name = result[f]['dbgs']['name']
+            if name is not '':
+                name = Color.colorify(name, 'green highlight')
+            module_name = result[f]['dbgs']['moduleName']
+            if module_name is not '':
+                if name is not '':
+                    name += ' - ' + module_name
+                else:
+                    name = module_name
+            a = ''
+            if len(result[f]['a']) > 0:
+                a = '(' + ', '.join(result[f]['a']) + ')'
+            log('%s %s (%s) %s' % (Color.colorify(result[f]['r'], 'bold'),
+                                   Color.colorify(result[f]['nf'], 'red highlight'),
+                                   name, a))
+
+    def __functions_store__(self, result):
+        return None
 
     def __add__(self, args):
         if self.cli.frida_script is not None:
@@ -967,7 +991,12 @@ class Function(Command):
                 name += ' - ' + module_name
             else:
                 name = module_name
-        log('%s (%s)' % (Color.colorify(result['nf'], 'red highlight'), name))
+        a = ''
+        if len(result['a']) > 0:
+            a = '(' + ', '.join(result['a']) + ')'
+        log('%s %s (%s) %s' % (Color.colorify(result['r'], 'bold'),
+                            Color.colorify(result['nf'], 'red highlight'),
+                            name, a))
 
     def __add_store__(self, result):
         if result is None:

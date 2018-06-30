@@ -7,7 +7,7 @@
 |  destruct   |  des,ds                         |  read at address arg0 for len arg1 and optional depth arg2                                                               |
 |  disasm     |  d,dis                          |  disassemble the given hex payload in arg0 or a pointer in arg0 with len in arg1                                         |
 |  find       |  fi                             |  utilities to find stuffs                                                                                                |
-|  function   |  fn,fu,funct                    |  list native functions                                                                                                   |
+|  functions  |  fn,fu,fun,func,funct,function  |  list native functions                                                                                                   |
 |  help       |  h                              |                                                                                                                          |
 |  hexdump    |  hd,hdump                       |  hexdump memory regions pointed by value in args for len in the last arg                                                 |
 |  info       |  i,in                           |  get information about your target                                                                                       |
@@ -34,7 +34,7 @@
 |-----------|------------|---------------------------------------------------------------------|
 |  export   |  e,ex,exp  |  find export name arg0 in target module or in optional module arg1  |
 
-# function sub commands
+# functions sub commands
 |  command  |  short  |                                              info                                              |
 |-----------|---------|------------------------------------------------------------------------------------------------|
 |  add      |  a      |  add a native function with pointer in arg0, return type in arg1 followed by args type if any  |
