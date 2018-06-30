@@ -1,3 +1,4 @@
+var libc = Process.platform === "darwin" ? 'libSystem.B.dylib' : 'libc.so';
 var base = 0x0;
 var sleep = false;
 var cContext = null;
@@ -5,7 +6,7 @@ var cOff = 0x0;
 var targets = {};
 var nfs = {};
 var nfs_n = {};
-var gettid = nf(getnf('gettid', 'libc.so', 'int', []));
+var gettid = nf(getnf('gettid', libc, 'int', []));
 var linker = Process.findModuleByName('linker');
 var main_tid = gettid();
 var gn_handler = 0x0;
@@ -52,7 +53,7 @@ function setup() {
 
     if (linker !== null) {
         var isLoadingTarget = false;
-        var rdI = Interceptor.attach(Module.findExportByName("libc.so", "open"), {
+        var rdI = Interceptor.attach(Module.findExportByName(libc, "open"), {
             onEnter: function() {
                 var what = Memory.readUtf8String(this.context.r0);
                 if (what.indexOf(module) >= 0) {
@@ -79,7 +80,7 @@ function setup() {
                             att(k, base.add(k));
                         }
 
-                        var dlSym = Interceptor.attach(Module.findExportByName('libc.so', 'dlsym'), {
+                        var dlSym = Interceptor.attach(Module.findExportByName(libc, 'dlsym'), {
                             onLeave: function(ret) {
                                 dlSym.detach();
 
@@ -143,8 +144,8 @@ function att(off, pt) {
 }
 
 function goodnight() {
-    var signal = nf(getnf('signal', 'libc.so', 'int', ['int', 'pointer']));
-    var tkill = nf(getnf('tkill', 'libc.so', 'int', ['int', 'int']));
+    var signal = nf(getnf('signal', libc, 'int', ['int', 'pointer']));
+    var tkill = nf(getnf('tkill', libc, 'int', ['int', 'int']));
 
     signal(12, gn_handler);
 
@@ -180,14 +181,14 @@ function goodnight() {
 }
 
 function postSetup() {
-    nf(getnf('opendir', 'libc.so', 'pointer', ['pointer']));
-    nf(getnf('readdir', 'libc.so', 'pointer', ['pointer']));
-    nf(getnf('fopen', 'libc.so', 'pointer', ['pointer', 'pointer']));
-    nf(getnf('fgets', 'libc.so', 'pointer', ['pointer', 'int', 'pointer']));
+    nf(getnf('opendir', libc, 'pointer', ['pointer']));
+    nf(getnf('readdir', libc, 'pointer', ['pointer']));
+    nf(getnf('fopen', libc, 'pointer', ['pointer', 'pointer']));
+    nf(getnf('fgets', libc, 'pointer', ['pointer', 'int', 'pointer']));
 
     var pthread_create_ptr = Module.findExportByName(null, 'pthread_create');
     if (pthread_create_ptr !== null) {
-        var pthread_create = nf(getnf('pthread_create', 'libc.so', 'int', ['pointer', 'pointer', 'pointer', 'pointer']));
+        var pthread_create = nf(getnf('pthread_create', libc, 'int', ['pointer', 'pointer', 'pointer', 'pointer']));
 
         Interceptor.replace(pthread_create_ptr, new NativeCallback(function (a, b, c, d) {
             var ret = pthread_create(a, b, c, d);
@@ -205,10 +206,10 @@ function readThreads() {
     var m_alloc = Memory.alloc(1024);
     Memory.protect(m_alloc, 1024, 'rwx');
 
-    var opendir = nf(getnf('opendir', 'libc.so', 'pointer', ['pointer']));
-    var readdir = nf(getnf('readdir', 'libc.so', 'pointer', ['pointer']));
-    var fopen = nf(getnf('fopen', 'libc.so', 'pointer', ['pointer', 'pointer']));
-    var fgets = nf(getnf('fgets', 'libc.so', 'pointer', ['pointer', 'int', 'pointer']));
+    var opendir = nf(getnf('opendir', libc, 'pointer', ['pointer']));
+    var readdir = nf(getnf('readdir', libc, 'pointer', ['pointer']));
+    var fopen = nf(getnf('fopen', libc, 'pointer', ['pointer', 'pointer']));
+    var fgets = nf(getnf('fgets', libc, 'pointer', ['pointer', 'int', 'pointer']));
 
     Memory.writeUtf8String(m_alloc, '/proc/self/task');
 
