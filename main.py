@@ -1566,10 +1566,8 @@ class Memory(Command):
     def __write__(self, args):
         ptr = args[0]
         args = args[1:]
-        for a in range(0, len(args)):
-            args[a] = str(args[a])
         try:
-            return int(self.cli.frida_script.exports.mw(ptr, ''.join(args[1:])), 16)
+            return int(self.cli.frida_script.exports.mw(ptr, ''.join(args)), 16)
         except Exception as e:
             return None
 
@@ -1642,7 +1640,7 @@ class Pack(Command):
             elif type(a) is str:
                 l += binascii.hexlify(a.encode('utf8')).decode('utf8')
         r = [l[i:i + 2] for i in range(0, len(l), 2)]
-        return ' '.join(r)
+        return ''.join(r)
 
     def __pack_result__(self, result):
         log(result)
