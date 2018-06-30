@@ -226,14 +226,14 @@ class CommandManager(object):
             while True:
                 try:
                     i = str(ev).index('$')
-                    tst = ev[i + 1:i + 3].lower()
+                    tst = ev[i + 1:].lower()
+                    try:
+                        tst = ev[:tst.index(' ')]
+                    except:
+                        pass
                     if tst in self.cli.context_manager.get_context():
                         ev = ev.replace('$%s' % tst, self.cli.context_manager.get_context()[tst]['value'])
-                        continue
-                    tst = ev[i + 1:i + 4].lower()
-                    if tst in self.cli.context_manager.get_context():
-                        ev = ev.replace('$%s' % tst, self.cli.context_manager.get_context()[tst]['value'])
-                    ev = self.try_eval(ev)
+                        ev = self.try_eval(ev)
                 except:
                     break
 
@@ -1356,7 +1356,6 @@ class Memory(Command):
         try:
             return [ptr, self.cli.frida_script.exports.mr(ptr, len)]
         except Exception as e:
-            log('failed to read data from device: %s' % e)
             return None
 
     def _parse_endianness_(self, args):
@@ -1572,7 +1571,6 @@ class Memory(Command):
         try:
             return int(self.cli.frida_script.exports.mw(ptr, ''.join(args[1:])), 16)
         except Exception as e:
-            log('failed to write data to device: %s' % e)
             return None
 
 
