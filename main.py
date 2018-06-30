@@ -441,6 +441,7 @@ class ContextManager(object):
         self.arch = arch
 
     def print_context(self):
+        self._cli.context_title('registers')
         if self.arch is not None:
             all_registers = self.arch.get_registers()
         else:
@@ -2072,18 +2073,22 @@ class FridaCli(object):
             return 600, 100
 
     @staticmethod
-    def context_title(m):
+    def context_title(m, color='blue bold', inverse=False):
         row, cols = FridaCli.get_terminal_size()
         if not m:
-            printer.append(Color.colorify('-' * cols, 'blue bold'))
+            printer.append(Color.colorify('-' * cols, color))
         else:
             trail_len = len(m) + 8
             title = ""
-            title += Color.colorify("{:{padd}<{width}}[ ".format("", width=cols - trail_len, padd='-'),
-                                    attrs='blue highlight')
-            title += Color.colorify(m, 'highlight')
-            title += Color.colorify(" ]{:{padd}<4}".format("", padd='-'),
-                                    attrs='blue highlight')
+            if not inverse:
+                title += Color.colorify("{:{padd}<{width}}[ ".format("", width=cols - trail_len, padd='-'), attrs=color)
+                title += Color.colorify(m, 'highlight')
+                title += Color.colorify(" ]{:{padd}<4}".format("", padd='-'), attrs=color)
+            else:
+                title += Color.colorify("{:{padd}<4}[ ".format("", padd='-'), attrs=color)
+                title += Color.colorify(m, 'highlight')
+                title += Color.colorify(" ]{:{padd}<{width}}".format("", width=cols - trail_len, padd='-'), attrs=color)
+
             printer.append(title)
 
     @staticmethod
@@ -2123,9 +2128,9 @@ class FridaCli(object):
                     name = Color.colorify('dt_init', 'green highlight') + ' ' + \
                            cli.context_manager.get_dtinit_target_offsets()[int(parts[1])]
                 if name is not '':
-                    cli.context_title('%s - 0x%x' % (name, cli.context_manager.get_context_offset()))
+                    cli.context_title('%s - 0x%x' % (name, cli.context_manager.get_context_offset()), 'green bold', True)
                 else:
-                    cli.context_title('0x%x' % (cli.context_manager.get_context_offset()))
+                    cli.context_title('0x%x' % (cli.context_manager.get_context_offset()), 'green bold', True)
                 cli.context_manager.print_context()
             elif id == 3:
                 printer.append('-%s thread started: %s\ttarget: %s (%s)' %
