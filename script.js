@@ -5,68 +5,12 @@ var cOff = 0x0;
 var targets = {};
 var nfs = {};
 var nfs_n = {};
-
+var gettid = nf(getnf('gettid', 'libc.so', 'int', []));
 var linker = Process.findModuleByName('linker');
-if (linker !== null) {
-    var isLoadingTarget = false;
-    var rdI = Interceptor.attach(Module.findExportByName("libc.so", "open"), {
-        onEnter: function() {
-            var what = Memory.readUtf8String(this.context.r0);
-            if (what.indexOf(module) >= 0) {
-                isLoadingTarget = true;
-            }
-        },
-        onLeave: function(ret) {
-            if (isLoadingTarget) {
-                rdI.detach();
-                isLoadingTarget = false;
-                var symb = Module.enumerateSymbolsSync("linker");
-                var pp = 0;
-                for (var sym in symb) {
-                    if (symb[sym].name.indexOf("prelink") >= 0) {
-                        pp = symb[sym].address
-                    }
-                }
-                var ppI = Interceptor.attach(pp, function() {
-                    ppI.detach();
-                    base = this.context.r1.sub(0x34);
-                    send('99:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
+var main_tid = gettid();
+var gn_handler = 0x0;
 
-                    for (var k in dtInitTargets) {
-                        att(k, base.add(k));
-                    }
-
-                    var dlSym = Interceptor.attach(Module.findExportByName('libc.so', 'dlsym'), {
-                        onLeave: function(ret) {
-                            dlSym.detach();
-
-                            // detach dt inits
-                            for (var k in targets) {
-                                targets[k+''].detach();
-                                delete targets[k+''];
-                            }
-                            // we attach later to those targets
-                            for (var k in pTargets) {
-                                att(k, base.add(k));
-                            }
-
-                            postSetup();
-                        }
-                    });
-                });
-            }
-        }
-    });
-} else {
-    setTimeout(function() {
-        base = Process.findModuleByName(module).base;
-        send('0:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
-        for (var k in pTargets) {
-            att(k, base.add(k));
-        }
-        postSetup();
-    }, 250);
-}
+setup();
 
 function sendContext() {
     var context = {};
@@ -96,22 +40,143 @@ function sendHookInfo() {
     send('4:::' + cOff + ':::' + JSON.stringify(sbt) + ':::' + bytesToHex(tds))
 }
 
+function setup() {
+    gn_handler = Memory.alloc(8);
+    Memory.protect(gn_handler, 8, 'rwx');
+    Interceptor.replace(gn_handler, new NativeCallback(function (sig) {
+        while (sleep) {
+            Thread.sleep(1);
+        }
+        return sig;
+    }, 'int', ['int']));
+
+    if (linker !== null) {
+        var isLoadingTarget = false;
+        var rdI = Interceptor.attach(Module.findExportByName("libc.so", "open"), {
+            onEnter: function() {
+                var what = Memory.readUtf8String(this.context.r0);
+                if (what.indexOf(module) >= 0) {
+                    isLoadingTarget = true;
+                }
+            },
+            onLeave: function(ret) {
+                if (isLoadingTarget) {
+                    rdI.detach();
+                    isLoadingTarget = false;
+                    var symb = Module.enumerateSymbolsSync("linker");
+                    var pp = 0;
+                    for (var sym in symb) {
+                        if (symb[sym].name.indexOf("prelink") >= 0) {
+                            pp = symb[sym].address
+                        }
+                    }
+                    var ppI = Interceptor.attach(pp, function() {
+                        ppI.detach();
+                        base = this.context.r1.sub(0x34);
+                        send('99:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
+
+                        for (var k in dtInitTargets) {
+                            att(k, base.add(k));
+                        }
+
+                        var dlSym = Interceptor.attach(Module.findExportByName('libc.so', 'dlsym'), {
+                            onLeave: function(ret) {
+                                dlSym.detach();
+
+                                // detach dt inits
+                                for (var k in targets) {
+                                    targets[k+''].detach();
+                                    delete targets[k+''];
+                                }
+                                // we attach later to those targets
+                                for (var k in pTargets) {
+                                    att(k, base.add(k));
+                                }
+
+                                postSetup();
+                            }
+                        });
+                    });
+                }
+            }
+        });
+    } else {
+        setTimeout(function() {
+            base = Process.findModuleByName(module).base;
+            send('0:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
+            for (var k in pTargets) {
+                att(k, base.add(k));
+            }
+            postSetup();
+        }, 250);
+    }
+}
+
 function att(off, pt) {
     if (base === 0) {
         return;
     }
     send('1:::' + pt);
     targets['' + pt] = Interceptor.attach(pt, function() {
+        if (sleep) {
+            while (sleep) {
+                Thread.sleep(1)
+            }
+            if (targets['' + pt] === null || typeof targets['' + pt] === 'undefined') {
+                return;
+            }
+        }
+        sleep = true;
         cContext = this.context;
         cOff = off;
         sendContext();
         sendHookInfo();
-        sleep = true;
 
+        var t_hooks = goodnight();
         while(sleep) {
             Thread.sleep(1);
         }
+        for (var k in t_hooks) {
+            t_hooks[k].detach();
+        }
     });
+}
+
+function goodnight() {
+    var signal = nf(getnf('signal', 'libc.so', 'int', ['int', 'pointer']));
+    var tkill = nf(getnf('tkill', 'libc.so', 'int', ['int', 'int']));
+
+    signal(12, gn_handler);
+
+    var t_hooks = {};
+
+    var ts = readThreads();
+    for (var to in ts) {
+        var t = ts[to];
+        if (t[0].indexOf('gum') >= 0 ||
+            t[0].indexOf('gdbus') >= 0) {
+            continue;
+        }
+        if (t[2] === 'R') {
+            if (parseInt(t[0]) !== main_tid) {
+                try {
+                    tkill(parseInt(t[0]), 12);
+                } catch (e) {}
+            }
+        } else {
+            var tpc = ptr(t[29]);
+            if (t_hooks[t[29]] !== null && typeof t_hooks[t[29]] !== 'undefined') {
+                continue;
+            }
+            t_hooks[t[29]] = Interceptor.attach(tpc, function () {
+                while (sleep) {
+                    Thread.sleep(1);
+                }
+            });
+        }
+    }
+
+    return t_hooks;
 }
 
 function postSetup() {
@@ -158,8 +223,8 @@ function readThreads() {
         }
         Memory.writeUtf8String(m_alloc, '/proc/' + pid + '/task/' + line + '/stat');
         Memory.writeUtf8String(m_alloc.add(64), 'r');
-        var fp = fopen(m_alloc, m_alloc.add(64));
         try {
+            var fp = fopen(m_alloc, m_alloc.add(64));
             line = Memory.readUtf8String(fgets(m_alloc, 1024, fp));
             var name = line.substring(line.indexOf('('), 1 + line.indexOf(')'));
             line = line.replace(' ' + name, '');
@@ -167,7 +232,6 @@ function readThreads() {
             proc.splice(1, 0, name.replace('(', '').replace(')', ''));
             res.push(proc);
         } catch (e) {
-            console.log('e1 -> ' + e);
         }
     }
     return res;
