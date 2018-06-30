@@ -797,7 +797,7 @@ class DeStruct(Command):
             chunk = data[0:chunk_size]
             i_val = struct.unpack('>L', chunk)[0]
             if i_val < 255:
-                _struct.append({'value': '0x%s' % (binascii.hexlify(chunk)), 'decimal': i_val})
+                _struct.append({'value': '0x%s' % (binascii.hexlify(chunk).decode('utf8')), 'decimal': i_val})
             else:
                 val = struct.unpack('<L', data[0:chunk_size])[0]
                 try:
@@ -814,7 +814,7 @@ class DeStruct(Command):
                         continue
                 except:
                     pass
-                _struct.append({'value': '0x%s' % (binascii.hexlify(chunk)), 'decimal': i_val})
+                _struct.append({'value': '0x%s' % (binascii.hexlify(chunk).decode('utf8')), 'decimal': i_val})
             data = data[chunk_size:]
         return _struct
 
