@@ -842,6 +842,7 @@ class DisAssembler(Command):
                              self.cli.context_manager.get_arch().get_capstone_mode())
             l = 0
             if type(args[0]) is str:
+                l = 32
                 b = binascii.unhexlify(args[0])
                 off = 0
                 if len(args) > 1:
@@ -857,16 +858,18 @@ class DisAssembler(Command):
                 off = args[0]
             ret = []
             t_s = 0
+            pc = int(self.cli.context_manager.get_context()['pc']['value'], 16)
             for i in cs.disasm(b, off):
-                if l > 0:
+                if l > 0 and t_s > 0:
                     t_s += i.size
                     if t_s > l:
+                        print('break')
                         break
                 faddr = '0x%x' % i.address
-                if self.cli.context_manager.get_context() is not None:
-                    pc = int(self.cli.context_manager.get_context()['pc']['value'], 16)
-                    if pc == i.address or pc + 1 == i.address:
-                        faddr = ' ' + Color.colorify(faddr, 'red highlight')
+                if pc == i.address or pc + 1 == i.address:
+                    faddr = ' ' + Color.colorify(faddr, 'red highlight')
+                    if l > 0:
+                        t_s += 1
                 ret.append("%s:\t%s\t%s" % (faddr, Color.colorify(i.mnemonic.upper(), 'bold'), i.op_str))
             return ret
 
@@ -2133,8 +2136,7 @@ class FridaCli(object):
             elif id == 4:
                 dis = DisAssembler(cli)
                 dis.__disasm_result__(dis.__disasm__(
-                    [parts[3].encode('ascii', 'ignore'),
-                     int(cli.context_manager.get_context()['pc']['value'], 16) - 32]))
+                    [parts[3], int(cli.context_manager.get_context()['pc']['value'], 16) - 32]))
                 Backtrace(cli).__backtrace_result__(json.loads(parts[2]))
                 Thread(target=cli.context_manager.on, args=(int(parts[1]),))
         else:

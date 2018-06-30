@@ -91,7 +91,7 @@ function sendHookInfo() {
     var sbt = Thread.backtrace(cContext, Backtracer.ACCURATE).map(DebugSymbol.fromAddress);
     var tds = [];
     try {
-        tds = Memory.readByteArray(cContext.pc.sub(32), 56);
+        tds = Memory.readByteArray(cContext.pc.sub(32), 128);
     } catch(err) {}
     send('4:::' + cOff + ':::' + JSON.stringify(sbt) + ':::' + bytesToHex(tds))
 }
