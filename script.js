@@ -103,8 +103,6 @@ function setup() {
                                 for (var k in pTargets) {
                                     att(k, base.add(k));
                                 }
-
-                                postSetup();
                             }
                         });
                     }
@@ -137,6 +135,7 @@ function att(off, pt) {
                 return;
             }
         }
+
         sleep = true;
         cContext = this.context;
         cOff = off;
@@ -191,11 +190,6 @@ function goodnight() {
 }
 
 function postSetup() {
-    nf(getnf('opendir', libc, 'pointer', ['pointer']));
-    nf(getnf('readdir', libc, 'pointer', ['pointer']));
-    nf(getnf('fopen', libc, 'pointer', ['pointer', 'pointer']));
-    nf(getnf('fgets', libc, 'pointer', ['pointer', 'int', 'pointer']));
-
     var pthread_create_ptr = Module.findExportByName(null, 'pthread_create');
     if (pthread_create_ptr !== null) {
         var pthread_create = nf(getnf('pthread_create', libc, 'int', ['pointer', 'pointer', 'pointer', 'pointer']));
@@ -333,6 +327,22 @@ rpc.exports = {
         } catch (err) {
             return err.toString();
         }
+    },
+    inject: function(b, name) {
+        b = hexToBytes(b);
+        var syscall = nf(getnf('syscall', libc, 'int', ['int', 'pointer', 'int']));
+        var write = nf(getnf('write', libc, 'int', ['int', 'pointer', 'int']));
+        var dlopen = nf(getnf('dlopen', libc, 'int', ['pointer', 'int']));
+        var m = Memory.alloc(128);
+        Memory.protect(m, 128, 'rw-');
+        Memory.writeUtf8String(m, name);
+        var fd = syscall(385, m, 0);
+        var blob = Memory.alloc(b.length);
+        Memory.protect(blob, b.length, 'rwx');
+        Memory.writeByteArray(blob, b);
+        write(fd, blob, b.length);
+        Memory.writeUtf8String(m, '/proc/' + pid + '/fd/' + fd);
+        return dlopen(m, 1);
     },
     ivp: function (p) {
         try {
