@@ -11,6 +11,7 @@
 |  help       |  h                              |                                                                                                                          |
 |  hexdump    |  hd,hdump                       |  hexdump memory regions pointed by value in args for len in the last arg                                                 |
 |  info       |  i,in                           |  get information about your target                                                                                       |
+|  inject     |  inj                            |  wrapper of dlopen to inject a binary from a local path in arg0 and custom name in arg1                                  |
 |  memory     |  m,mem                          |  memory operations                                                                                                       |
 |  once       |  o,on                           |  add a callback for ptr target hit in arg0. the keyword 'init' can be used to do stuffs once module base is retrieved.   |
 |  pack       |  pa                             |  pack value in arg0 to return a string usable with memory write                                                          |

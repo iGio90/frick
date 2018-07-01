@@ -864,7 +864,6 @@ class DisAssembler(Command):
                 if l > 0 and t_s > 0:
                     t_s += i.size
                     if t_s > l:
-                        print('break')
                         break
                 faddr = '0x%x' % i.address
                 if pc == i.address or pc + 1 == i.address:
@@ -1220,6 +1219,37 @@ class Info(Command):
                                                      Color.colorify(range['protection'], 'ping highlight')))
         if 'file' in range:
             printer.append('\npath: %s' % Color.colorify(range['file']['path'], 'highlight'))
+
+
+class Inject(Command):
+    def get_command_info(self):
+        return {
+            'name': 'inject',
+            'shortcuts': [
+                'inj'
+            ],
+            'args': 2,
+            'info': 'wrapper of dlopen to inject a binary from a local path in arg0 and custom name in arg1'
+        }
+
+    def __inject__(self, args):
+        if self.cli.frida_script is None:
+            return None
+
+        with open(args[0], 'rb') as f:
+            blob = f.read()
+
+        return [self.cli.frida_script.exports.inject(binascii.hexlify(blob).decode('utf8'), args[1]), args[1]]
+
+    def __inject_result__(self, result):
+        if result[0] is not 0:
+            mi = self.cli.frida_script.exports.fmbn('memfd:' + result[1])
+            if mi is None:
+                log('error mapping %s' % Color.colorify(result[1], 'bold'))
+            else:
+                mi = json.loads(mi)
+                log('%s - mapped at %s' % (Color.colorify(mi['name'], 'bold'),
+                                           Color.colorify(mi['address'], 'red bold')))
 
 
 class Memory(Command):

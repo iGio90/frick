@@ -67,37 +67,46 @@ function setup() {
                     var symb = Module.enumerateSymbolsSync("linker");
                     var pp = 0;
                     for (var sym in symb) {
-                        if (symb[sym].name.indexOf("prelink") >= 0) {
+                        if (symb[sym].name.indexOf("phdr_table_get_dynamic_section") >= 0) {
                             pp = symb[sym].address
                         }
                     }
-                    var ppI = Interceptor.attach(pp, function() {
-                        ppI.detach();
-                        base = this.context.r1.sub(0x34);
-                        send('99:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
+                    var ppI = Interceptor.attach(pp, {
+                        onLeave: function(ret) {
+                            ppI.detach();
 
-                        for (var k in dtInitTargets) {
-                            att(k, base.add(k));
-                        }
+                            base = this.context.r2;
+                            send('99:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
 
-                        var dlSym = Interceptor.attach(Module.findExportByName(libc, 'dlsym'), {
-                            onLeave: function(ret) {
-                                dlSym.detach();
-
-                                // detach dt inits
-                                for (var k in targets) {
-                                    targets[k+''].detach();
-                                    delete targets[k+''];
-                                }
-                                // we attach later to those targets
-                                for (var k in pTargets) {
-                                    att(k, base.add(k));
-                                }
-
-                                postSetup();
+                            if (Process.findModuleByName('libg.so') !== null) {
+                                Interceptor.detachAll();
+                                return;
                             }
-                        });
+
+                            for (var k in dtInitTargets) {
+                                att(k, base.add(k));
+                            }
+
+                            var dlSym = Interceptor.attach(Module.findExportByName(libc, 'dlsym'), {
+                                onLeave: function(ret) {
+                                    dlSym.detach();
+
+                                    // detach dt inits
+                                    for (var k in targets) {
+                                        targets[k+''].detach();
+                                        delete targets[k+''];
+                                    }
+                                    // we attach later to those targets
+                                    for (var k in pTargets) {
+                                        att(k, base.add(k));
+                                    }
+
+                                    postSetup();
+                                }
+                            });
+                        }
                     });
+
                 }
             }
         });
@@ -127,6 +136,7 @@ function att(off, pt) {
                 return;
             }
         }
+
         sleep = true;
         cContext = this.context;
         cOff = off;
@@ -181,11 +191,6 @@ function goodnight() {
 }
 
 function postSetup() {
-    nf(getnf('opendir', libc, 'pointer', ['pointer']));
-    nf(getnf('readdir', libc, 'pointer', ['pointer']));
-    nf(getnf('fopen', libc, 'pointer', ['pointer', 'pointer']));
-    nf(getnf('fgets', libc, 'pointer', ['pointer', 'int', 'pointer']));
-
     var pthread_create_ptr = Module.findExportByName(null, 'pthread_create');
     if (pthread_create_ptr !== null) {
         var pthread_create = nf(getnf('pthread_create', libc, 'int', ['pointer', 'pointer', 'pointer', 'pointer']));
@@ -323,6 +328,22 @@ rpc.exports = {
         } catch (err) {
             return err.toString();
         }
+    },
+    inject: function(b, name) {
+        b = hexToBytes(b);
+        var syscall = nf(getnf('syscall', libc, 'int', ['int', 'pointer', 'int']));
+        var write = nf(getnf('write', libc, 'int', ['int', 'pointer', 'int']));
+        var dlopen = nf(getnf('dlopen', libc, 'int', ['pointer', 'int']));
+        var m = Memory.alloc(128);
+        Memory.protect(m, 128, 'rw-');
+        Memory.writeUtf8String(m, name);
+        var fd = syscall(385, m, 0);
+        var blob = Memory.alloc(b.length);
+        Memory.protect(blob, b.length, 'rwx');
+        Memory.writeByteArray(blob, b);
+        write(fd, blob, b.length);
+        Memory.writeUtf8String(m, '/proc/' + pid + '/fd/' + fd);
+        return dlopen(m, 1);
     },
     ivp: function (p) {
         try {
