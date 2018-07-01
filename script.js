@@ -52,6 +52,7 @@ function setup() {
     }, 'int', ['int']));
 
     if (linker !== null) {
+
         var isLoadingTarget = false;
         var rdI = Interceptor.attach(Module.findExportByName(libc, "open"), {
             onEnter: function() {
@@ -61,33 +62,42 @@ function setup() {
                 }
             },
             onLeave: function(ret) {
-                if (isLoadingTarget) {
-                    rdI.detach();
-                    isLoadingTarget = false;
-                    var symb = Module.enumerateSymbolsSync("linker");
-                    var pp = 0;
-                    for (var sym in symb) {
-                        if (symb[sym].name.indexOf("prelink") >= 0) {
-                            pp = symb[sym].address
-                        }
+                if (!isLoadingTarget) {
+                    return;
+                }
+                rdI.detach();
+                isLoadingTarget = false;
+                var symb = Module.enumerateSymbolsSync("linker");
+                var pp = 0;
+                for (var sym in symb) {
+                    if (symb[sym].name.indexOf("phdr_table_get_dynamic_section") >= 0) {
+                        pp = symb[sym].address
                     }
-                    var ppI = Interceptor.attach(pp, function() {
+                }
+                var ppI = Interceptor.attach(pp, {
+                    onLeave: function (ret) {
                         ppI.detach();
-                        base = this.context.r1.sub(0x34);
+
+                        base = this.context.r2;
                         send('99:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
+
+                        if (Process.findModuleByName('libg.so') !== null) {
+                            Interceptor.detachAll();
+                            return;
+                        }
 
                         for (var k in dtInitTargets) {
                             att(k, base.add(k));
                         }
 
                         var dlSym = Interceptor.attach(Module.findExportByName(libc, 'dlsym'), {
-                            onLeave: function(ret) {
+                            onLeave: function (ret) {
                                 dlSym.detach();
 
                                 // detach dt inits
                                 for (var k in targets) {
-                                    targets[k+''].detach();
-                                    delete targets[k+''];
+                                    targets[k + ''].detach();
+                                    delete targets[k + ''];
                                 }
                                 // we attach later to those targets
                                 for (var k in pTargets) {
@@ -97,8 +107,8 @@ function setup() {
                                 postSetup();
                             }
                         });
-                    });
-                }
+                    }
+                });
             }
         });
     } else {
