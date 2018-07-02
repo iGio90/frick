@@ -337,6 +337,9 @@ rpc.exports = {
         Memory.protect(m, 128, 'rw-');
         Memory.writeUtf8String(m, name);
         var fd = syscall(385, m, 0);
+        if (fd === -1) {
+            return null;
+        }
         var blob = Memory.alloc(b.length);
         Memory.protect(blob, b.length, 'rwx');
         Memory.writeByteArray(blob, b);
