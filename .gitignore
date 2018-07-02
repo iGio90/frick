@@ -64,3 +64,4 @@ venv.bak/
 .session
 .session_old
 fridacli.iml
+.scripts

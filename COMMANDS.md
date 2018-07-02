@@ -20,6 +20,7 @@
 |  registers  |  r,reg,regs                     |  interact with registers                                                                                                 |
 |  remove     |  del,delete,rem                 |  remove an offsets from targets list                                                                                     |
 |  run        |  c,cont,continue,go,next,start  |  continue the execution of the process to the next target offset                                                         |
+|  scripts    |                                 |  manage custom frida scripts                                                                                             |
 |  session    |  s,ss                           |                                                                                                                          |
 |  set        |                                 |                                                                                                                          |
 
@@ -79,6 +80,13 @@
 |  command  |  short  |                  info                   |
 |-----------|---------|-----------------------------------------|
 |  write    |  w,wr   |  write in register arg0 the value arg1  |
+
+# scripts sub commands
+|  command  |  short  |                                      info                                      |
+|-----------|---------|--------------------------------------------------------------------------------|
+|  load     |  l      |  load the frida script with path in arg0                                       |
+|  open     |  o,op   |  create or open a new frida script with name in arg0 and start default editor  |
+|  unload   |  u,ul   |  unload the frida script with path in arg0                                     |
 
 # session sub commands
 |  command  |  short  |                                           info                                           |

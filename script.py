@@ -9,4 +9,8 @@ def get_script(pid, module, offsets, dtinitOffsets):
         js += 'dtInitTargets[' + str(k) + '] = ' + str(k) + ';'
     with open('script.js', 'r') as f:
         js += f.read()
+    with open('base.js', 'r') as f:
+        js += '\n\n%s' % f.read()
+    with open('post.js', 'r') as f:
+        js += '\n\n%s' % f.read()
     return js

@@ -495,6 +495,7 @@ class ContextManager(object):
             log('add offsets or target package before using \'save\'')
 
     def load(self):
+        self._cli.on_load()
         if not os.path.exists('.session'):
             log('session file not found. use \'save\' to save offsets and target for the next cycle')
             return
@@ -693,9 +694,9 @@ class Attach(Command):
                 log('failed to connected to remote frida server')
                 return None
         pid = self.cli.frida_device.spawn(package)
-        process = self.cli.frida_device.attach(pid)
+        self.cli.frida_process = self.cli.frida_device.attach(pid)
         log("frida %s" % Color.colorify('attached', 'bold'))
-        self.cli.frida_script = process.create_script(script.get_script(
+        self.cli.frida_script = self.cli.frida_process.create_script(script.get_script(
             pid,
             module,
             self.cli.context_manager.get_target_offsets(),
@@ -1870,7 +1871,93 @@ class Run(Command):
 
     def __run__(self, args):
         self.cli.frida_script.exports.c()
+        for s in self.cli.get_scripts():
+            sc = self.cli.get_scripts()[s]
+            if sc['status'] == 1:
+                sc['script'].exports.c()
         return None
+
+
+class Scripts(Command):
+    def get_command_info(self):
+        return {
+            'name': 'scripts',
+            'info': 'manage custom frida scripts',
+            'sub': [
+                {
+                    'name': 'load',
+                    'info': 'load the frida script with path in arg0',
+                    'args': 1,
+                    'shortcuts': ['l']
+                },
+                {
+                    'name': 'open',
+                    'info': 'create or open a new frida script with name in arg0 and start default editor',
+                    'args': 1,
+                    'shortcuts': ['o', 'op']
+                },
+                {
+                    'name': 'unload',
+                    'info': 'unload the frida script with path in arg0',
+                    'args': 1,
+                    'shortcuts': ['u', 'ul']
+                }
+            ]
+        }
+
+    def __scripts__(self, args):
+        if len(self.cli.get_scripts().keys()) is 0:
+            return 0
+        return 1
+
+    def __scripts_result__(self, result):
+        if result is 0:
+            log('scripts list is empty')
+        else:
+            pass
+
+    def __create__(self, args):
+        if not os.path.exists('.scripts'):
+            os.mkdir('.scripts')
+        s_path = '.scripts/' + args[0]
+        if not os.path.exists(s_path):
+            with open(s_path, 'a'):
+                os.utime(s_path, None)
+
+        editor = os.getenv('EDITOR')
+        if editor:
+            os.system(editor + ' ' + s_path)
+        else:
+            webbrowser.open(s_path)
+
+    def __load__(self, args):
+        with open(args[0], 'r') as f:
+            script = f.read()
+        with open('base.js', 'r') as f:
+            script += '\n\n%s' % f.read()
+
+        return [args[0], self.cli.load_script(args[0], script)]
+
+    def __load_result__(self, result):
+        loadres = result[1]
+        if loadres == -1:
+            log('%s is already loaded into target process' % Color.colorify(result[0], 'green highlight'))
+        elif loadres == 0:
+            log('%s injected and loaded' % Color.colorify(result[0], 'green highlight'))
+        elif loadres == 1:
+            log('%s loaded' % Color.colorify(result[0], 'green highlight'))
+
+    def __unload(self, args):
+        return [args[0], self.cli.unload_script(args[0])]
+
+    def __unload_result__(self, result):
+        loadres = result[1]
+        if loadres == -1:
+            log('%s not found into scripts list' % Color.colorify(result[0], 'green highlight'))
+        elif loadres == 0:
+            log('%s unloaded' % Color.colorify(result[0], 'green highlight'))
+        elif loadres == 1:
+            log('%s is not loaded' % Color.colorify(result[0], 'green highlight'))
 
 
 class Session(Command):
@@ -2003,11 +2090,17 @@ class Set(Command):
 class FridaCli(object):
     def __init__(self):
         self.frida_device = None
+        self.frida_process = None
         self.frida_script = None
+
+        self.initialized = False
 
         self.bind_device()
         self.cmd_manager = CommandManager(self)
         self.context_manager = ContextManager(self)
+
+        self.scripts = {}
+        self.pending_scripts = {}
 
     def start(self):
         self.cmd_manager.init()
@@ -2034,6 +2127,59 @@ class FridaCli(object):
             return True
         except:
             return False
+
+    def get_scripts(self):
+        return self.scripts
+
+    def load_script(self, path, script):
+        if self.frida_process is None:
+            self.pending_scripts[path] = script
+            return 3
+
+        if path in self.scripts:
+            if self.scripts[path]['status'] == 1:
+                return -1
+            elif script[path]['status'] == 0:
+                self.scripts[path]['script'].load()
+                self.scripts[path]['status'] = 1
+                return 1
+            else:
+                return 2
+        else:
+            fscript = self.frida_process.create_script(script)
+            fscript.on('message', self.on_frida_message)
+            self.scripts[path] = {'status': 1, 'script': fscript}
+            if self.initialized:
+                fscript.load()
+                return 0
+            return 2
+
+    def unload_script(self, path):
+        if path not in self.scripts:
+            return -1
+        if self.scripts[path]['status'] == 0:
+            return 1
+        self.scripts[path].unload()
+        self.scripts[path]['status'] = 0
+        return 0
+
+    def load_pending_scripts(self):
+        for s in self.scripts:
+            if self.scripts[s]['status'] == -1:
+                self.scripts[s]['status'] = 1
+                self.scripts[s]['script'].load()
+        for s in self.pending_scripts:
+            self.load_script(s, self.pending_scripts[s])
+        self.pending_scripts = {}
+
+    def on_load(self):
+        self.frida_device = None
+        self.frida_process = None
+        self.frida_script = None
+
+        self.initialized = False
+        for s in self.scripts:
+            self.scripts[s]['status'] = -1
 
     def hexdump(self, data, offset=0, ret='print'):
         if type(offset) is str:
@@ -2151,6 +2297,13 @@ class FridaCli(object):
     @staticmethod
     def on_frida_message(message, data):
         if 'payload' in message:
+            payload = message['payload']
+            try:
+                payload.index(':::')
+            except:
+                print(payload)
+                return
+
             parts = message['payload'].split(':::')
             try:
                 id = int(parts[0])
@@ -2173,7 +2326,9 @@ class FridaCli(object):
                     log('%s target base at %s' % (Color.colorify('leaked', 'green highlight'),
                                                   Color.colorify('0x%x' % cli.context_manager.get_base(),
                                                                  'red highlight')))
+                cli.initialized = True
                 cli.context_manager.on('init')
+                Thread(target=cli.load_pending_scripts).start()
             elif id == 1:
                 log('attached to %s' % Color.colorify(parts[1], 'red highlight'))
             elif id == 2:
@@ -2201,7 +2356,7 @@ class FridaCli(object):
                 dis.__disasm_result__(dis.__disasm__(
                     [parts[3], int(cli.context_manager.get_context()['pc']['value'], 16) - 32]))
                 Backtrace(cli).__backtrace_result__(json.loads(parts[2]))
-                Thread(target=cli.context_manager.on, args=(int(parts[1]),))
+                cli.context_manager.on(int(parts[1]))
         else:
             log(message)
 
