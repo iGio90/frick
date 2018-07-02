@@ -1883,6 +1883,7 @@ class Scripts(Command):
         return {
             'name': 'scripts',
             'info': 'manage custom frida scripts',
+            'shortcuts': ['script', 'scr', 'sc'],
             'sub': [
                 {
                     'name': 'load',
@@ -1914,7 +1915,12 @@ class Scripts(Command):
         if result is 0:
             log('scripts list is empty')
         else:
-            pass
+            for s in self.cli.get_scripts():
+                sc = self.cli.get_scripts()[s]
+                status = Color.colorify('not loaded', 'red highlight')
+                if sc['status'] == 1:
+                    status = Color.colorify('loaded', 'bold')
+                log('%s - %s' % (Color.colorify(s, 'green highlight'), status))
 
     def __create__(self, args):
         if not os.path.exists('.scripts'):

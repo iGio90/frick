@@ -20,7 +20,7 @@
 |  registers  |  r,reg,regs                     |  interact with registers                                                                                                 |
 |  remove     |  del,delete,rem                 |  remove an offsets from targets list                                                                                     |
 |  run        |  c,cont,continue,go,next,start  |  continue the execution of the process to the next target offset                                                         |
-|  scripts    |                                 |  manage custom frida scripts                                                                                             |
+|  scripts    |  sc,scr,script                  |  manage custom frida scripts                                                                                             |
 |  session    |  s,ss                           |                                                                                                                          |
 |  set        |                                 |                                                                                                                          |
 
