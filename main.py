@@ -998,8 +998,8 @@ class Function(Command):
         if len(result['a']) > 0:
             a = '(' + ', '.join(result['a']) + ')'
         log('%s %s (%s) %s' % (Color.colorify(result['r'], 'bold'),
-                            Color.colorify(result['nf'], 'red highlight'),
-                            name, a))
+                               Color.colorify(result['nf'], 'red highlight'),
+                               name, a))
 
     def __add_store__(self, result):
         if result is None:
@@ -1142,6 +1142,11 @@ class Info(Command):
                     'name': 'ranges',
                     'info': 'list all ranges or single range in optional arg0',
                     'shortcuts': ['range', 'r', 'rg']
+                },
+                {
+                    'name': 'threads',
+                    'info': 'list all threads or single thread with optional tid in rg0',
+                    'shortcuts': ['thread', 'th', 't']
                 }
             ]
         }
@@ -1179,9 +1184,10 @@ class Info(Command):
     def _print_module(self, module):
         self.cli.context_title(module['name'])
         printer.append('name: %s\nbase: %s\nsize: %s (%s)' % (Color.colorify(module['name'], 'bold'),
-                                                     Color.colorify(module['base'], 'red highlight'),
-                                                     Color.colorify('0x%x' % module['size'], 'green highlight'),
-                                                     Color.colorify(str(module['size']), 'bold')))
+                                                              Color.colorify(module['base'], 'red highlight'),
+                                                              Color.colorify('0x%x' % module['size'],
+                                                                             'green highlight'),
+                                                              Color.colorify(str(module['size']), 'bold')))
         if 'path' in module:
             printer.append('path: %s' % Color.colorify(module['path'], 'highlight'))
 
@@ -1214,11 +1220,32 @@ class Info(Command):
     def _print_range(self, range):
         self.cli.context_title(range['base'])
         printer.append('base: %s\nsize: %s (%s)\nprot: %s' % (Color.colorify(range['base'], 'red highlight'),
-                                                     Color.colorify('0x%x' % range['size'], 'green highlight'),
-                                                     Color.colorify(str(range['size']), 'bold'),
-                                                     Color.colorify(range['protection'], 'ping highlight')))
+                                                              Color.colorify('0x%x' % range['size'], 'green highlight'),
+                                                              Color.colorify(str(range['size']), 'bold'),
+                                                              Color.colorify(range['protection'], 'ping highlight')))
         if 'file' in range:
             printer.append('\npath: %s' % Color.colorify(range['file']['path'], 'highlight'))
+
+    def __threads__(self, args):
+        if self.cli.frida_script is None:
+            return None
+
+        if len(args) == 0:
+            return json.loads(self.cli.frida_script.exports.ets())
+        else:
+            tid = args[0]
+            return [json.loads(self.cli.frida_script.exports.ftbp(tid))]
+
+    def __threads_result__(self, result):
+        for t in result:
+            self._print_thread(t)
+
+    def _print_thread(self, thread):
+        self.cli.context_title(thread[0], inverse=True)
+        log('name: %s\nstatus: %s\nparent: %s\nPC: %s' % (Color.colorify(thread[1], 'green highlight'),
+                                                          Color.colorify(thread[2], 'bold'),
+                                                          Color.colorify(thread[3], 'yellow bold'),
+                                                          Color.colorify('0x%x' % int(thread[29]), 'red highlight')))
 
 
 class Inject(Command):
@@ -2158,7 +2185,8 @@ class FridaCli(object):
                     name = Color.colorify('dt_init', 'green highlight') + ' ' + \
                            cli.context_manager.get_dtinit_target_offsets()[int(parts[1])]
                 if name is not '':
-                    cli.context_title('%s - 0x%x' % (name, cli.context_manager.get_context_offset()), 'green bold', True)
+                    cli.context_title('%s - 0x%x' % (name, cli.context_manager.get_context_offset()), 'green bold',
+                                      True)
                 else:
                     cli.context_title('0x%x' % (cli.context_manager.get_context_offset()), 'green bold', True)
                 cli.context_manager.print_context()

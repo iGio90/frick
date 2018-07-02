@@ -42,10 +42,11 @@
 |  run      |  r      |  run native function pointed by arg0 followed by function args                                 |
 
 # info sub commands
-|  command  |        short         |                         info                         |
-|-----------|----------------------|------------------------------------------------------|
-|  modules  |  m,md,mo,mod,module  |  list all modules or single module in optional arg0  |
-|  ranges   |  r,range,rg          |  list all ranges or single range in optional arg0    |
+|  command  |        short         |                             info                             |
+|-----------|----------------------|--------------------------------------------------------------|
+|  modules  |  m,md,mo,mod,module  |  list all modules or single module in optional arg0          |
+|  ranges   |  r,range,rg          |  list all ranges or single range in optional arg0            |
+|  threads  |  t,th,thread         |  list all threads or single thread with optional tid in rg0  |
 
 # memory sub commands
 |  command  |      short      |                                     info                                     |

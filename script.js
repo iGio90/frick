@@ -207,15 +207,14 @@ function postSetup() {
 }
 
 function readThreads() {
-    var m_alloc = Memory.alloc(1024);
-    Memory.protect(m_alloc, 1024, 'rwx');
+    var path = '/proc/self/task';
+    var m_alloc = Memory.alloc(path.length);
+    Memory.protect(m_alloc, path.length, 'rw-');
 
     var opendir = nf(getnf('opendir', libc, 'pointer', ['pointer']));
     var readdir = nf(getnf('readdir', libc, 'pointer', ['pointer']));
-    var fopen = nf(getnf('fopen', libc, 'pointer', ['pointer', 'pointer']));
-    var fgets = nf(getnf('fgets', libc, 'pointer', ['pointer', 'int', 'pointer']));
 
-    Memory.writeUtf8String(m_alloc, '/proc/self/task');
+    Memory.writeUtf8String(m_alloc, path);
 
     var proc_dir = opendir(m_alloc);
     var entry;
@@ -226,20 +225,33 @@ function readThreads() {
         if (line.indexOf('.') >= 0) {
             continue;
         }
-        Memory.writeUtf8String(m_alloc, '/proc/' + pid + '/task/' + line + '/stat');
-        Memory.writeUtf8String(m_alloc.add(64), 'r');
-        try {
-            var fp = fopen(m_alloc, m_alloc.add(64));
-            line = Memory.readUtf8String(fgets(m_alloc, 1024, fp));
-            var name = line.substring(line.indexOf('('), 1 + line.indexOf(')'));
-            line = line.replace(' ' + name, '');
-            var proc = line.split(' ');
-            proc.splice(1, 0, name.replace('(', '').replace(')', ''));
+
+        var proc;
+        if ((proc = readTask(line)) !== null) {
             res.push(proc);
-        } catch (e) {
         }
     }
     return res;
+}
+
+function readTask(id) {
+    var m_alloc = Memory.alloc(1024);
+    Memory.protect(m_alloc, 1024, 'rw-');
+    var fopen = nf(getnf('fopen', libc, 'pointer', ['pointer', 'pointer']));
+    var fgets = nf(getnf('fgets', libc, 'pointer', ['pointer', 'int', 'pointer']));
+    Memory.writeUtf8String(m_alloc, '/proc/' + pid + '/task/' + id + '/stat');
+    Memory.writeUtf8String(m_alloc.add(64), 'r');
+    try {
+        var fp = fopen(m_alloc, m_alloc.add(64));
+        var line = Memory.readUtf8String(fgets(m_alloc, 1024, fp));
+        var name = line.substring(line.indexOf('('), 1 + line.indexOf(')'));
+        line = line.replace(' ' + name, '');
+        var proc = line.split(' ');
+        proc.splice(1, 0, name.replace('(', '').replace(')', ''));
+        return proc;
+    } catch (e) {
+        return null;
+    }
 }
 
 function nf(n) {
@@ -290,11 +302,7 @@ rpc.exports = {
         return m;
     },
     ets: function () {
-        var m = Process.enumerateThreadsSync();
-        if (m != null) {
-            m = JSON.stringify(m);
-        }
-        return m;
+        return JSON.stringify(readThreads());
     },
     fexbn: function (a, b) {
         return Module.findExportByName(a, b);
@@ -319,6 +327,13 @@ rpc.exports = {
             m = JSON.stringify(m);
         }
         return m;
+    },
+    ftbp: function (tid) {
+        var proc = readTask(tid);
+        if (proc !== null) {
+            proc = JSON.stringify(proc);
+        }
+        return proc;
     },
     gnf: function (p, r, a) {
         try {
