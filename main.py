@@ -44,6 +44,9 @@ import readline as readline
 from threading import Thread
 
 
+_python3 = sys.version_info.major == 3
+
+
 class Printer(Thread):
     def __init__(self):
         self.sleep = 1 / 10
@@ -839,9 +842,11 @@ class DisAssembler(Command):
 
         if self.cli.context_manager.get_arch() is None:
             log('this arch is not yet supported :(')
+            return None
         else:
             cs = capstone.Cs(self.cli.context_manager.get_arch().get_capstone_arch(),
                              self.cli.context_manager.get_arch().get_capstone_mode())
+            cs.detail = True
             l = 0
             if type(args[0]) is str:
                 l = 32
@@ -871,7 +876,30 @@ class DisAssembler(Command):
                     faddr = ' ' + Color.colorify(faddr, 'red highlight')
                     if l > 0:
                         t_s += 1
-                ret.append("%s:\t%s\t%s" % (faddr, Color.colorify(i.mnemonic.upper(), 'bold'), i.op_str))
+                is_jmp = False
+                if len(i.groups) > 0:
+                    if 1 in i.groups:
+                        is_jmp = True
+                ret.append("%s:\t%s\t%s" % (faddr, Color.colorify(i.mnemonic.upper(),
+                                                                  'bold' if not is_jmp else 'green bold'),
+                                            i.op_str))
+                if is_jmp:
+                    if self.cli.frida_script is not None:
+                        for op in i.operands:
+                            if op.type == 2:
+                                s_off = int(self.cli.to_x_32(op.imm), 16)
+                                deep = self.cli.frida_script.exports.mr(s_off, 8)
+                                if deep is not None:
+                                    t = 0
+                                    for i in cs.disasm(deep, s_off):
+                                        if t > 2:
+                                            break
+                                        faddr = Color.colorify('0x%x:' % i.address, 'gray highlight')
+                                        ret.append("%s %s\t%s\t%s" % (' ' * 4, faddr,
+                                                                    Color.colorify(i.mnemonic.upper(), 'gray bold'),
+                                                                    Color.colorify(i.op_str, 'gray')))
+                                        t += 1
+
             return ret
 
     def __disasm_result__(self, result):
@@ -2272,6 +2300,23 @@ class FridaCli(object):
                 return result
 
     @staticmethod
+    def to_hex2(s):
+        if _python3:
+            r = "".join("{0:02x}".format(c) for c in s)
+        else:
+            r = "".join("{0:02x}".format(ord(c)) for c in s)
+        while r[0] == '0': r = r[1:]
+        return r
+
+    @staticmethod
+    def to_x_32(s):
+        from struct import pack
+        if not s: return '0'
+        x = pack(">i", s)
+        while x[0] in ('\0', 0): x = x[1:]
+        return cli.to_hex2(x)
+
+    @staticmethod
     def get_terminal_size():
         """Return the current terminal size."""
         try:
@@ -2358,11 +2403,14 @@ class FridaCli(object):
                                 Color.colorify(parts[2], 'red highlight'),
                                 parts[3]))
             elif id == 4:
-                dis = DisAssembler(cli)
-                dis.__disasm_result__(dis.__disasm__(
-                    [parts[3], int(cli.context_manager.get_context()['pc']['value'], 16) - 32]))
-                Backtrace(cli).__backtrace_result__(json.loads(parts[2]))
-                cli.context_manager.on(int(parts[1]))
+                def print_post_context(parts):
+                    dis = DisAssembler(cli)
+                    dis.__disasm_result__(dis.__disasm__(
+                        [parts[3], int(cli.context_manager.get_context()['pc']['value'], 16) - 32]))
+                    Backtrace(cli).__backtrace_result__(json.loads(parts[2]))
+                    cli.context_manager.on(int(parts[1]))
+                Thread(target=print_post_context, args=(parts,)).start()
+
         else:
             log(message)
 

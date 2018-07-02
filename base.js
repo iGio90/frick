@@ -1,5 +1,4 @@
 var libc = Process.platform === "darwin" ? 'libSystem.B.dylib' : 'libc.so';
-var base = 0x0;
 var nfs = {};
 var nfs_n = {};
 
@@ -12,6 +11,10 @@ var gettid = nf(getnf('gettid', libc, 'int', []));
 var main_tid = gettid();
 
 setupBase();
+
+function onLoad(cb) {
+    cb();
+}
 
 function sendContext() {
     var context = {};

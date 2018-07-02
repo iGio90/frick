@@ -1,3 +1,4 @@
+var base = 0x0;
 var targets = {};
 var linker = Process.findModuleByName('linker');
 
