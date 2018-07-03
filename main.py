@@ -102,6 +102,28 @@ def log(what):
         printer.append(what)
 
 
+def log_multicol(what):
+    row, cols = FridaCli.get_terminal_size()
+    f_rows = []
+    h_iter = 0
+    max = cols / 75
+    row = ''
+    while len(what) > 0:
+        if row == '':
+            row += what[h_iter].pop(0)
+        else:
+            row += '\t\t' + what[h_iter].pop(0)
+        if len(what[h_iter]) == 0:
+            what.pop(h_iter)
+        else:
+            h_iter += 1
+        if h_iter == max or len(what) <= h_iter:
+            f_rows.append(row)
+            h_iter = 0
+            row = ''
+    printer.append('\n'.join(f_rows))
+
+
 class Arch(object):
     def __init__(self):
         self.capstone_arch = None
@@ -1125,28 +1147,10 @@ class Hexdump(Command):
         if len(result) == 1:
             self.cli.hexdump(result[0][1], result[0][0])
         else:
-            row, cols = FridaCli.get_terminal_size()
             h_rows = []
-            f_rows = []
             for dump in result:
                 h_rows.append(self.cli.hexdump(dump[1], dump[0], 'return'))
-            h_iter = 0
-            max = cols / 75
-            row = ''
-            while len(h_rows) > 0:
-                if row == '':
-                    row += h_rows[h_iter].pop(0)
-                else:
-                    row += '\t\t' + h_rows[h_iter].pop(0)
-                if len(h_rows[h_iter]) == 0:
-                    h_rows.pop(h_iter)
-                else:
-                    h_iter += 1
-                if h_iter == max or len(h_rows) <= h_iter:
-                    f_rows.append(row)
-                    h_iter = 0
-                    row = ''
-            printer.append('\n'.join(f_rows))
+            log_multicol(h_rows)
 
     def __hexdump_store__(self, data):
         return None
@@ -1833,6 +1837,11 @@ class Registers(Command):
             self.cli.frida_script.exports.sc()
         except:
             pass
+        for sc in self.cli.get_scripts():
+            try:
+                self.cli.get_scripts()[sc]['script'].exports.sc()
+            except:
+                pass
 
     def __write__(self, args):
         reg = args[0].lower()

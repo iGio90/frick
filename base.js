@@ -3,7 +3,7 @@ var nfs = {};
 var nfs_n = {};
 
 var sleep = false;
-var cContext = null;
+var cContext = {};
 var cOff = 0x0;
 var gn_handler = 0x0;
 
@@ -11,10 +11,6 @@ var gettid = nf(getnf('gettid', libc, 'int', []));
 var main_tid = gettid();
 
 setupBase();
-
-function onLoad(cb) {
-    cb();
-}
 
 function sendContext() {
     var context = {};
@@ -199,14 +195,21 @@ function bytesToHex(b) {
     return hexStr;
 }
 
-if (rpc.exports === null || typeof rpc.exports === 'undefined') {
-    rpc.exports = {
-        c: function () {
-            sleep = false;
-        }
-    };
-} else {
-    rpc.exports['c'] = function () {
+var c_exp = {
+    c: function () {
+        cContext = {};
         sleep = false;
+    },
+    sc: function() {
+        if (typeof cContext['pc'] === 'undefined') {
+            return;
+        }
+        sendContext();
     }
+};
+
+if (rpc.exports === null || typeof rpc.exports === 'undefined') {
+    rpc.exports = c_exp;
+} else {
+    rpc.exports = Object.assign({}, rpc.exports, c_exp);
 }

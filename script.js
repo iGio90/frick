@@ -331,8 +331,5 @@ rpc.exports = {
         } catch(err) {
             return null;
         }
-    },
-    sc: function() {
-        sendContext();
     }
 };
