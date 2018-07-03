@@ -48,13 +48,16 @@ from threading import Thread
 _python3 = sys.version_info.major == 3
 
 
-class Printer(Thread):
+class Printer(object):
     def __init__(self):
         self.sleep = 1 / 10
         self.lines = []
-
-        super().__init__(target=self.loop, daemon=True)
-        self.start()
+        if _python3:
+            Thread(target=self.loop, daemon=True).start()
+        else:
+            t = Thread(target=self.loop)
+            t.setDaemon(True)
+            t.start()
 
     def append(self, what):
         self.lines.append(what)
@@ -893,7 +896,9 @@ class DisAssembler(Command):
                              self.cli.context_manager.get_arch().get_capstone_mode())
             cs.detail = True
             l = 0
-            if type(args[0]) is str:
+            if type(args[0]) is str or type(args[0]) is unicode:
+                if type(args[0]) is unicode:
+                    args[0] = args[0].encode('ascii','ignore')
                 l = 32
                 b = binascii.unhexlify(args[0])
                 off = 0
