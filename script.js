@@ -118,6 +118,9 @@ rpc.exports = {
     bt: function () {
         return Thread.backtrace(cContext, Backtracer.ACCURATE).map(DebugSymbol.fromAddress);
     },
+    dbgsfa: function(x) {
+        return DebugSymbol.fromAddress(ptr(x));
+    },
     ems: function () {
         var m = Process.enumerateModulesSync();
         if (m != null) {

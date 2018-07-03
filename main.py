@@ -902,15 +902,20 @@ class DisAssembler(Command):
                 if len(i.groups) > 0:
                     if 1 in i.groups:
                         is_jmp = True
-                ret.append("%s:\t%s\t%s" % (faddr, Color.colorify(i.mnemonic.upper(),
-                                                                  'bold' if not is_jmp else 'green bold'),
-                                            i.op_str))
                 if is_jmp:
+                    pst = False
                     if self.cli.frida_script is not None:
                         for op in i.operands:
                             if op.type == 2:
                                 s_off = int(self.cli.to_x_32(op.imm), 16)
+                                dbgs = self.cli.frida_script.exports.dbgsfa(s_off)
                                 deep = self.cli.frida_script.exports.mr(s_off, 8)
+                                sy = '%s - %s' % (Color.colorify(dbgs['name'], 'red highlight'),
+                                                  Color.colorify(dbgs['moduleName'], 'bold'))
+                                ret.append("%s:\t%s\t%s (%s)" % (faddr,
+                                                            Color.colorify(i.mnemonic.upper(), 'blue bold'),
+                                                            i.op_str, sy))
+                                pst = True
                                 if deep is not None:
                                     t = 0
                                     for i in cs.disasm(deep, s_off):
@@ -921,6 +926,13 @@ class DisAssembler(Command):
                                                                     Color.colorify(i.mnemonic.upper(), 'gray bold'),
                                                                     Color.colorify(i.op_str, 'gray')))
                                         t += 1
+                    if not pst:
+                        ret.append("%s:\t%s\t%s" % (faddr, Color.colorify(i.mnemonic.upper(), 'blue highlight'),
+                                                    i.op_str))
+                else:
+                    ret.append("%s:\t%s\t%s" % (faddr,
+                                                Color.colorify(i.mnemonic.upper(), 'bold'),
+                                                i.op_str))
 
             return ret
 
@@ -2221,8 +2233,7 @@ class FridaCli(object):
         self.frida_script = None
 
         self.initialized = False
-        for s in self.scripts:
-            self.scripts[s]['status'] = -1
+        self.scripts = {}
 
     def hexdump(self, data, offset=0, ret='print'):
         if type(offset) is str:
