@@ -37,6 +37,7 @@ import struct
 import sys
 import termios
 import time
+import unicorn
 import webbrowser
 
 import readline as readline
@@ -126,6 +127,8 @@ def log_multicol(what):
 
 class Arch(object):
     def __init__(self):
+        self.unicorn_arch = None
+        self.unicorn_mode = None
         self.capstone_arch = None
         self.capstone_mode = None
 
@@ -138,16 +141,30 @@ class Arch(object):
     def get_capstone_mode(self):
         return self.capstone_mode
 
+    def get_unicorn_arch(self):
+        return self.unicorn_arch
+
+    def get_unicorn_mode(self):
+        return self.unicorn_mode
+
     def set_capstone_arch(self, arch):
         self.capstone_arch = arch
 
     def set_capstone_mode(self, mode):
         self.capstone_mode = mode
 
+    def set_unicorn_arch(self, arch):
+        self.unicorn_arch = arch
+
+    def set_unicorn_mode(self, mode):
+        self.unicorn_mode = mode
+
 
 class Arm(Arch):
     def __init__(self):
         super(Arm, self).__init__()
+        self.unicorn_arch = unicorn.UC_ARCH_ARM
+        self.unicorn_mode = unicorn.UC_MODE_ARM
         self.capstone_arch = capstone.CS_ARCH_ARM
         self.capstone_mode = capstone.CS_MODE_ARM
 
@@ -391,6 +408,10 @@ class ContextManager(object):
                 self.arch.capstone_arch = p_arch.capstone_arch
             if p_arch.capstone_mode is not None:
                 self.arch.capstone_mode = p_arch.capstone_mode
+            if p_arch.unicorn_arch is not None:
+                self.arch.unicorn_arch = p_arch.unicorn_arch
+            if p_arch.unicorn_mode is not None
+                self.arch.unicorn_mode= p_arch.unicorn_mode
         return self.arch
 
     def apply_once(self, what, once_arr):
@@ -499,6 +520,8 @@ class ContextManager(object):
         if self._cli.context_manager.get_arch() is not None:
             ext += 'set cs arch ' + str(self._cli.context_manager.get_arch().get_capstone_arch()) + '\n'
             ext += 'set cs mode ' + str(self._cli.context_manager.get_arch().get_capstone_mode()) + '\n'
+            ext += 'set uc arch ' + str(self._cli.context_manager.get_arch().get_unicorn_arch()) + '\n'
+            ext += 'set uc mode ' + str(self._cli.context_manager.get_arch().get_unicorn_mode()) + '\n'
         if len(self.target_offsets) > 0:
             for t in self.target_offsets:
                 ext += 'add %s %s\n' % (str(t), self.target_offsets[t])
@@ -2095,7 +2118,7 @@ class Set(Command):
                     'info': 'capstone configurations',
                     'args': 1,
                     'shortcuts': [
-                        'cs'
+                        'cs', 'c'
                     ],
                     'sub': [
                         {
@@ -2110,6 +2133,34 @@ class Set(Command):
                             'name': 'mode',
                             'args': 1,
                             'info': 'set the capstone mode in arg0',
+                            'shortcuts': [
+                                'm', 'md', 'mod'
+                            ]
+                        }
+                    ]
+                },
+                {
+                    'name': 'unicorn',
+                    'info': 'unicorn configurations',
+                    'args': 1,
+                    'shortcuts': [
+                        'uc', 'u'
+                    ],
+                    'sub': [
+                        {
+                            'name': 'arch',
+                            'target': 'uc_arch',
+                            'args': 1,
+                            'info': 'set the unicorn arch in arg0',
+                            'shortcuts': [
+                                'a', 'ar'
+                            ]
+                        },
+                        {
+                            'name': 'mode',
+                            'target': 'uc_mode',
+                            'args': 1,
+                            'info': 'set the unicorn mode in arg0',
                             'shortcuts': [
                                 'm', 'md', 'mod'
                             ]
@@ -2157,6 +2208,46 @@ class Set(Command):
 
         log('mode not found. use one of:')
         log(' '.join(sorted(mode_list)).replace('CS_MODE_', '').lower())
+        return None
+
+    def __uc_arch__(self, args):
+        if type(args[0]) is int:
+            if self.cli.context_manager.get_arch() is None:
+                self.cli.context_manager.set_arch(Arch())
+            self.cli.context_manager.get_arch().set_unicorn_arch(args[0])
+            return args[0]
+
+        arch_list = [k for k, v in unicorn.__dict__.items() if not k.startswith("__") and k.startswith("UC_ARCH")]
+        if type(args[0]) is str:
+            __arch_test = 'UC_ARCH_%s' % args[0].upper()
+            if __arch_test in arch_list:
+                if self.cli.context_manager.get_arch() is None:
+                    self.cli.context_manager.set_arch(Arch())
+                __arch = getattr(unicorn, __arch_test)
+                self.cli.context_manager.get_arch().set_unicorn_arch(__arch)
+                return __arch
+        log('arch not found. use one of:')
+        log(' '.join(sorted(arch_list)).replace('UC_ARCH_', '').lower())
+
+    def __uc_mode__(self, args):
+        if type(args[0]) is int:
+            if self.cli.context_manager.get_arch() is None:
+                self.cli.context_manager.set_arch(Arch())
+            self.cli.context_manager.get_arch().set_unicorn_mode(args[0])
+            return args[0]
+
+        mode_list = [k for k, v in unicorn.__dict__.items() if not k.startswith("__") and k.startswith("UC_MODE")]
+        if type(args[0]) is str:
+            __mode_test = 'UC_MODE_%s' % args[0].upper()
+            if __mode_test in mode_list:
+                if self.cli.context_manager.get_arch() is None:
+                    self.cli.context_manager.set_arch(Arch())
+                __mode = getattr(unicorn, __mode_test)
+                self.cli.context_manager.get_arch().set_unicorn_mode(__mode)
+                return __mode
+
+        log('mode not found. use one of:')
+        log(' '.join(sorted(mode_list)).replace('UC_MODE_', '').lower())
         return None
 
 
