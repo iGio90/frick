@@ -936,13 +936,16 @@ class DisAssembler(Command):
                         for op in i.operands:
                             if op.type == 2:
                                 s_off = int(self.cli.to_x_32(op.imm), 16)
-                                dbgs = self.cli.frida_script.exports.dbgsfa(s_off)
-                                deep = self.cli.frida_script.exports.mr(s_off, 8)
-                                sy = '%s - %s' % (Color.colorify(dbgs['name'], 'red highlight'),
-                                                  Color.colorify(dbgs['moduleName'], 'bold'))
-                                ret.append("%s:\t%s\t%s (%s)" % (faddr,
-                                                            Color.colorify(i.mnemonic.upper(), 'blue bold'),
-                                                            i.op_str, sy))
+                                try:
+                                    dbgs = self.cli.frida_script.exports.dbgsfa(s_off)
+                                    deep = self.cli.frida_script.exports.mr(s_off, 8)
+                                    sy = '%s - %s' % (Color.colorify(dbgs['name'], 'red highlight'),
+                                                      Color.colorify(dbgs['moduleName'], 'bold'))
+                                    ret.append("%s:\t%s\t%s (%s)" % (faddr,
+                                                                     Color.colorify(i.mnemonic.upper(), 'blue bold'),
+                                                                     i.op_str, sy))
+                                except:
+                                    deep = None
                                 pst = True
                                 if deep is not None:
                                     t = 0
