@@ -944,6 +944,24 @@ class DisAssembler(Command):
         return None
 
 
+class Emulator(Command):
+    def get_command_info(self):
+        return {
+            'name': 'emulator',
+            'args': 1,
+            'info': 'unicorn emulator',
+            'sub': [
+                {
+                    'name': 'start',
+                    'args': 1,
+                }
+            ]
+        }
+
+    def __emulator__(self):
+        pass
+
+
 class Find(Command):
     def get_command_info(self):
         return {
