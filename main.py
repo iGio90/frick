@@ -896,9 +896,11 @@ class DisAssembler(Command):
                              self.cli.context_manager.get_arch().get_capstone_mode())
             cs.detail = True
             l = 0
-            if type(args[0]) is str or type(args[0]) is unicode:
+            if not _python3:
                 if type(args[0]) is unicode:
-                    args[0] = args[0].encode('ascii','ignore')
+                    args[0] = args[0].encode('ascii', 'ignore')
+
+            if type(args[0]) is str:
                 l = 32
                 b = binascii.unhexlify(args[0])
                 off = 0
