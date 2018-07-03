@@ -410,7 +410,7 @@ class ContextManager(object):
                 self.arch.capstone_mode = p_arch.capstone_mode
             if p_arch.unicorn_arch is not None:
                 self.arch.unicorn_arch = p_arch.unicorn_arch
-            if p_arch.unicorn_mode is not None
+            if p_arch.unicorn_mode is not None:
                 self.arch.unicorn_mode= p_arch.unicorn_mode
         return self.arch
 
@@ -886,7 +886,7 @@ class DisAssembler(Command):
             return None
 
         if self.cli.context_manager.get_arch() is None:
-            log('this arch is not yet supported :(')
+            log('this arch is not yet supported :( - but you can still use set command to manually configure')
             return None
         else:
             cs = capstone.Cs(self.cli.context_manager.get_arch().get_capstone_arch(),
@@ -981,8 +981,17 @@ class Emulator(Command):
             ]
         }
 
-    def __emulator__(self):
-        pass
+    def __start__(self, args):
+        if self.cli.context_manager.get_base() == 0:
+            log('a target attached is needed before using emulator')
+            return None
+
+        if self.cli.context_manager.get_arch() is None:
+            log('this arch is not yet supported :( - but you can still use set command to manually configure')
+            return None
+
+        uc = unicorn.Uc(self.cli.context_manager.get_arch().get_unicorn_arch(),
+                        self.cli.context_manager.get_arch().get_unicorn_mode())
 
 
 class Find(Command):
