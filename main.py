@@ -941,9 +941,12 @@ class DisAssembler(Command):
                                 try:
                                     dbgs = self.cli.frida_script.exports.dbgsfa(s_off)
                                     deep = self.cli.frida_script.exports.mr(s_off, 8)
-                                    sy = '%s - %s' % (Color.colorify(dbgs['name'], 'red highlight'),
-                                                      Color.colorify(dbgs['moduleName'], 'bold'))
-                                    ret.append("%s:\t%s\t%s (%s)" % (faddr,
+                                    if dbgs is not None:
+                                        sy = ' (%s - %s)' % (Color.colorify(dbgs['name'], 'red highlight'),
+                                                          Color.colorify(dbgs['moduleName'], 'bold'))
+                                    else:
+                                        sy = ''
+                                    ret.append("%s:\t%s\t%s%s" % (faddr,
                                                                      Color.colorify(i.mnemonic.upper(), 'blue bold'),
                                                                      i.op_str, sy))
                                 except:
@@ -983,6 +986,9 @@ class Emulator(Command):
             'name': 'emulator',
             'args': 1,
             'info': 'unicorn emulator',
+            'shortcuts': [
+                'emu', 'e'
+            ],
             'sub': [
                 {
                     'name': 'start',
@@ -1002,6 +1008,10 @@ class Emulator(Command):
 
         uc = unicorn.Uc(self.cli.context_manager.get_arch().get_unicorn_arch(),
                         self.cli.context_manager.get_arch().get_unicorn_mode())
+        module = json.loads(self.cli.frida_script.exports.fmbn(self.cli.context_manager.get_target_module()))
+        print(module)
+        uc.mem_map(int(module['base'], 16), module['size'])
+        print('do')
 
 
 class Find(Command):

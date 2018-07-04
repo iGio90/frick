@@ -119,6 +119,11 @@ rpc.exports = {
         return Thread.backtrace(cContext, Backtracer.ACCURATE).map(DebugSymbol.fromAddress);
     },
     dbgsfa: function(x) {
+        try {
+            Memory.readPointer(ptr(x));
+        } catch (e) {
+            return null;
+        }
         return DebugSymbol.fromAddress(ptr(x));
     },
     ems: function () {
