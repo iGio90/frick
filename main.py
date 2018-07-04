@@ -999,6 +999,12 @@ class Emulator(Command):
         }
 
     def __start__(self, args):
+        self.cs = capstone.Cs(self.cli.context_manager.get_arch().get_capstone_arch(),
+                              self.cli.context_manager.get_arch().get_capstone_mode())
+
+        if type(args[0]) is not int:
+            log('invalid emulation end offset')
+            return None
         if self.cli.context_manager.get_base() == 0:
             log('a target attached is needed before using emulator')
             return None
@@ -1007,11 +1013,36 @@ class Emulator(Command):
             log('this arch is not yet supported :( - but you can still use set command to manually configure')
             return None
 
-        uc = unicorn.Uc(self.cli.context_manager.get_arch().get_unicorn_arch(),
+        self.uc = unicorn.Uc(self.cli.context_manager.get_arch().get_unicorn_arch(),
                         self.cli.context_manager.get_arch().get_unicorn_mode())
         module = json.loads(self.cli.frida_script.exports.fmbn(self.cli.context_manager.get_target_module()))
-        uc.mem_map(int(module['base'], 16), module['size'])
-        print('wip wip')
+        self.uc.mem_map(int(module['base'], 16), module['size'])
+
+        self.uc.hook_add(unicorn.UC_HOOK_CODE, self.hook_instr)
+        self.uc.hook_add(unicorn.UC_HOOK_MEM_WRITE | unicorn.UC_HOOK_MEM_READ, self.hook_mem_access)
+        self.uc.hook_add(unicorn.UC_HOOK_MEM_READ_UNMAPPED | unicorn.UC_HOOK_MEM_WRITE_UNMAPPED |
+                         unicorn.UC_HOOK_MEM_FETCH_UNMAPPED, self.hook_mem_unmapped)
+
+        log('starting emulation at %s' % Color.colorify(
+            '0x%x' % self.cli.context_manager.get_context_offset(), 'red highlight'))
+        self.uc.emu_start(self.cli.context_manager.get_context_offset(), args[0])
+
+    def hook_instr(self, uc, address, size, user_data):
+        for i in self.cs.disasm(bytes(uc.mem_read(address, size)), address):
+            print("0x%x:\t%s\t%s" % (i.address, i.mnemonic, i.op_str))
+
+    def hook_mem_access(self, uc, access, address, size, value, user_data):
+        if access == unicorn.UC_MEM_WRITE:
+            print("-> Memory is being WRITE at 0x%x, data size = %u, data value = 0x%x" % (address, size, value))
+        else:
+            try:
+                print("-> Memory is being READ at 0x%x, data size = %u, data value = 0x%x"
+                      % (address, size, int(self.uc.mem_read(address, size).encode('hex'), 16)))
+            except Exception as e:
+                print('-> hook mem access: failed to read at 0x%x - err: %s' % (address, e))
+
+    def hook_mem_unmapped(self, uc, access, address, size, value, user_data):
+        print('-> reading to an unmapped memory region at 0x%x' % address)
 
 
 class Find(Command):
