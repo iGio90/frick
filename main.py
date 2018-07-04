@@ -917,7 +917,7 @@ class DisAssembler(Command):
                 off = args[0]
             ret = []
             t_s = 0
-            pc = int(self.cli.context_manager.get_context()['pc']['value'], 16)
+            pc = cli.context_manager.get_context_offset()
             for i in cs.disasm(b, off):
                 if l > 0 and t_s > 0:
                     t_s += i.size
@@ -2563,7 +2563,7 @@ class FridaCli(object):
                 def print_post_context(parts):
                     dis = DisAssembler(cli)
                     dis.__disasm_result__(dis.__disasm__(
-                        [parts[3], int(cli.context_manager.get_context()['pc']['value'], 16) - 32]))
+                        [parts[3], cli.context_manager.get_context_offset() - 32]))
                     Backtrace(cli).__backtrace_result__(json.loads(parts[2]))
                     cli.context_manager.on(int(parts[1]))
                 Thread(target=print_post_context, args=(parts,)).start()

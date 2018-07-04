@@ -87,7 +87,7 @@ function att(pt) {
             }
         }
 
-        cli(this.context);
+        cli(pt, this.context);
     });
 }
 
