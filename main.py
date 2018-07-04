@@ -1009,9 +1009,8 @@ class Emulator(Command):
         uc = unicorn.Uc(self.cli.context_manager.get_arch().get_unicorn_arch(),
                         self.cli.context_manager.get_arch().get_unicorn_mode())
         module = json.loads(self.cli.frida_script.exports.fmbn(self.cli.context_manager.get_target_module()))
-        print(module)
         uc.mem_map(int(module['base'], 16), module['size'])
-        print('do')
+        print('wip wip')
 
 
 class Find(Command):
