@@ -148,10 +148,10 @@ function getnfp(p, r, a) {
     return nf_o;
 }
 
-function cli(context) {
+function cli(pt, context) {
     sleep = true;
     cContext = context;
-    cOff = parseInt(context.pc);
+    cOff = parseInt(pt);
     sendContext();
     sendHookInfo();
 
