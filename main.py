@@ -428,6 +428,7 @@ class ContextManager(object):
 
     def clean(self):
         self.target_offsets = {}
+        self.target_virtual_offsets = {}
         self.context = None
         self.context_offset = 0x0
 
