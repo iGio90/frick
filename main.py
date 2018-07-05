@@ -1022,7 +1022,10 @@ class Emulator(Command):
             'sub': [
                 {
                     'name': 'start',
-                    'args': 1,
+                    'args': 1
+                },
+                {
+                    'name': 'stop'
                 }
             ]
         }
@@ -1030,12 +1033,10 @@ class Emulator(Command):
     def __start__(self, args):
         if self.cli.context_manager.get_arch() is None or self.cli.frida_script is None:
             return None
-
+        if type(args[0]) is not int:
+            log('invalid exit point')
         if self.cli.context_manager.get_arch().get_unicorn_constants() is None:
             log('this arch is not yet supported :(')
-            return None
-        if type(args[0]) is not int:
-            log('invalid emulation end offset')
             return None
         if self.cli.context_manager.get_base() == 0:
             log('a target attached is needed before using emulator')
@@ -1047,6 +1048,14 @@ class Emulator(Command):
 
         self.uc = unicorn.Uc(self.cli.context_manager.get_arch().get_unicorn_arch(),
                              self.cli.context_manager.get_arch().get_unicorn_mode())
+
+        if not os.path.exists('.emulator'):
+            os.mkdir('.emulator')
+        self.session_file = '.emulator/' + str(int(round(time.time() * 1000))) + '_' + \
+                            ('0x%x.html' % self.cli.context_manager.get_context_offset())
+        with open(self.session_file, 'w') as f:
+            f.write('<body text="white" bgcolor="#222222"><br>')
+
         self.map_region_by_addr(self.cli.context_manager.get_context_offset())
 
         for reg in self.cli.context_manager.get_context():
@@ -1062,11 +1071,11 @@ class Emulator(Command):
         self.uc.hook_add(unicorn.UC_HOOK_MEM_READ_UNMAPPED | unicorn.UC_HOOK_MEM_WRITE_UNMAPPED |
                          unicorn.UC_HOOK_MEM_FETCH_UNMAPPED, self.hook_mem_unmapped)
 
+        self.instr_count = 0
         log('starting emulation at %s' % Color.colorify(
             '0x%x' % self.cli.context_manager.get_context_offset(), 'red highlight'))
         try:
-            self.until = args[0]
-            self.uc.emu_start(self.cli.context_manager.get_context_offset(), self.until)
+            self.uc.emu_start(self.cli.context_manager.get_context_offset(), args[0])
         except Exception as e:
             log('error while running emulator: %s' % e)
         return None
@@ -1074,36 +1083,75 @@ class Emulator(Command):
     def hook_instr(self, uc, address, size, user_data):
         self.current_address = address
         for i in self.cs.disasm(bytes(uc.mem_read(address, size)), address):
-            log(DisAssembler.instr_line(i, self.cs))
+            self.instr_count += 1
+            print('tracked %u instruction\r' % self.instr_count, end='')
+            sys.stdout.flush()
+
+            faddr = '0x%x' % i.address
+            is_jmp = False
+            if len(i.groups) > 0:
+                if 1 in i.groups:
+                    is_jmp = True
+            if is_jmp:
+                pst = False
+                if cli.frida_script is not None:
+                    for op in i.operands:
+                        if op.type == 2:
+                            s_off = int(cli.to_x_32(op.imm), 16)
+                            dbgs = cli.frida_script.exports.dbgsfa(s_off)
+                            if dbgs is not None:
+                                sy = ' (%s - %s)' % (dbgs['name'], dbgs['moduleName'])
+                            else:
+                                sy = ''
+                            self.write_to_session("%s:\t%s\t%s%s" % (faddr, i.mnemonic.upper(),
+                                                                     i.op_str, sy))
+                if not pst:
+                    self.write_to_session("%s:\t%s\t%s" % (faddr, i.mnemonic.upper(), i.op_str))
+            else:
+                self.write_to_session("%s:\t%s\t%s" % (faddr, i.mnemonic.upper(),
+                                            i.op_str))
 
     def hook_mem_access(self, uc, access, address, size, value, user_data):
         if access == unicorn.UC_MEM_WRITE:
-            log("memory is being WRITE at 0x%x, data size = %u, data value = 0x%x" % (address, size, value))
+            self.write_to_session(
+                "memory is being WRITE at 0x%x, data size = %u, data value = 0x%x" % (address, size, value))
         else:
             try:
-                log("memory is being READ at 0x%x, data size = %u, data value = 0x%x"
-                    % (address, size, int(self.uc.mem_read(address, size).hex(), 16)))
+                self.write_to_session("memory is being READ at 0x%x, data size = %u, data value = 0x%x"
+                                      % (address, size, int(self.uc.mem_read(address, size).hex(), 16)))
             except Exception as e:
-                log('hook mem access: failed to read at 0x%x - err: %s' % (address, e))
+                self.write_to_session('hook mem access: failed to read at 0x%x - err: %s' % (address, e))
 
     def hook_mem_unmapped(self, uc, access, address, size, value, user_data):
-        log('reading to an unmapped memory region at %s' % Color.colorify('0x%x' % address, 'red highlight'))
+        self.write_to_session('reading to an unmapped memory region at %s' %
+                              Color.colorify('0x%x' % address, 'red highlight'))
         uc.emu_stop()
         map_len = self.map_region_by_addr(address)
         if map_len > 0:
-            uc.emu_start(self.current_address + 1, self.until)
+            start_addr = self.current_address
+            if self.cli.context_manager.get_arch().get_unicorn_mode() == unicorn.UC_MODE_THUMB:
+                start_addr += 1
+            uc.emu_start(start_addr, start_addr + self.cli.context_manager.get_pointer_size())
 
     def map_region_by_addr(self, addr):
         range_info = self.cli.frida_script.exports.frba(addr)
         if range_info is not None:
             range_info = json.loads(range_info)
-            log('mapping %s at %s' % (Color.colorify(str(range_info['size']), 'green highlight'),
-                                      Color.colorify(range_info['base'], 'red highlight')))
+            self.write_to_session('mapping %s at %s' % (str(range_info['size']), range_info['base']))
             base = int(range_info['base'], 16)
             self.uc.mem_map(base, range_info['size'])
             self.uc.mem_write(base, self.cli.frida_script.exports.mr(base, range_info['size']))
             return range_info['size']
         return 0
+
+    def __stop__(self):
+        if self.cli.get_emulator() is not None:
+            log('emulator stopped')
+            self.cli.set_emulator(None)
+
+    def write_to_session(self, what):
+        with open(self.session_file, 'a') as f:
+            f.write(what + '<br>')
 
 
 class Find(Command):
