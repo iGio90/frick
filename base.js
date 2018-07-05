@@ -35,6 +35,11 @@ function sendHookInfo() {
     var sbt = Thread.backtrace(cContext, Backtracer.ACCURATE).map(DebugSymbol.fromAddress);
     var tds = [];
     try {
+        // dethumbify
+        if (cOff % 2 !== 0) {
+            cOff--;
+        }
+
         tds = Memory.readByteArray(ptr(cOff).sub(32), 128);
     } catch(err) {}
     send('4:::' + cOff + ':::' + JSON.stringify(sbt) + ':::' + bytesToHex(tds))
@@ -152,11 +157,6 @@ function cli(pt, context) {
     sleep = true;
     cContext = context;
     cOff = parseInt(pt);
-
-    // dethumbify
-    if (cOff % 2 !== 0) {
-        cOff--;
-    }
 
     sendContext();
     sendHookInfo();

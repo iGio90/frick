@@ -135,6 +135,9 @@ class Arch(object):
         self.capstone_arch = None
         self.capstone_mode = None
 
+    def get_unicorn_constants(self):
+        return None
+
     def get_registers(self):
         return []
 
@@ -170,6 +173,9 @@ class Arm(Arch):
         self.unicorn_mode = unicorn.UC_MODE_ARM
         self.capstone_arch = capstone.CS_ARCH_ARM
         self.capstone_mode = capstone.CS_MODE_ARM
+
+    def get_unicorn_constants(self):
+        return unicorn.arm_const
 
     def get_registers(self):
         r = []
@@ -1014,9 +1020,9 @@ class Emulator(Command):
         if self.cli.context_manager.get_arch() is None or self.cli.frida_script is None:
             return None
 
-        self.cs = capstone.Cs(self.cli.context_manager.get_arch().get_capstone_arch(),
-                              self.cli.context_manager.get_arch().get_capstone_mode())
-
+        if self.cli.context_manager.get_arch().get_unicorn_constants() is None:
+            log('this arch is not yet supported :(')
+            return None
         if type(args[0]) is not int:
             log('invalid emulation end offset')
             return None
@@ -1024,9 +1030,8 @@ class Emulator(Command):
             log('a target attached is needed before using emulator')
             return None
 
-        if self.cli.context_manager.get_arch() is None:
-            log('this arch is not yet supported :( - but you can still use set command to manually configure')
-            return None
+        self.cs = capstone.Cs(self.cli.context_manager.get_arch().get_capstone_arch(),
+                              self.cli.context_manager.get_arch().get_capstone_mode())
 
         self.uc = unicorn.Uc(self.cli.context_manager.get_arch().get_unicorn_arch(),
                         self.cli.context_manager.get_arch().get_unicorn_mode())
@@ -1035,6 +1040,13 @@ class Emulator(Command):
         self.uc.mem_map(base, module['size'])
         self.uc.mem_write(base, self.cli.frida_script.exports.mrup(base, module['size']))
 
+        for reg in self.cli.context_manager.get_context():
+            try:
+                __reg = getattr(self.cli.context_manager.get_arch().get_unicorn_constants(), 'UC_ARM_REG_%s' % reg.upper())
+                self.uc.reg_write(__reg, int(self.cli.context_manager.get_context()[reg]['value'], 16))
+            except:
+                pass
+
         self.uc.hook_add(unicorn.UC_HOOK_CODE, self.hook_instr)
         self.uc.hook_add(unicorn.UC_HOOK_MEM_WRITE | unicorn.UC_HOOK_MEM_READ, self.hook_mem_access)
         self.uc.hook_add(unicorn.UC_HOOK_MEM_READ_UNMAPPED | unicorn.UC_HOOK_MEM_WRITE_UNMAPPED |
@@ -1042,7 +1054,11 @@ class Emulator(Command):
 
         log('starting emulation at %s' % Color.colorify(
             '0x%x' % self.cli.context_manager.get_context_offset(), 'red highlight'))
-        self.uc.emu_start(self.cli.context_manager.get_context_offset(), args[0])
+        try:
+            self.uc.emu_start(self.cli.context_manager.get_context_offset(), args[0])
+        except Exception as e:
+            log('error while running emulator: %s' % e)
+        return None
 
     def hook_instr(self, uc, address, size, user_data):
         for i in self.cs.disasm(bytes(uc.mem_read(address, size)), address):
