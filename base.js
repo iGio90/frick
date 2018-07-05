@@ -71,11 +71,13 @@ function goodnight() {
             if (t_hooks[t[29]] !== null && typeof t_hooks[t[29]] !== 'undefined') {
                 continue;
             }
-            t_hooks[t[29]] = Interceptor.attach(tpc, function () {
-                while (sleep) {
-                    Thread.sleep(1);
-                }
-            });
+            try {
+                t_hooks[t[29]] = Interceptor.attach(tpc, function () {
+                    while (sleep) {
+                        Thread.sleep(1);
+                    }
+                });
+            } catch (e) {}
         }
     }
 

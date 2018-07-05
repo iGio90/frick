@@ -44,7 +44,6 @@ import readline as readline
 
 from threading import Thread
 
-
 _python3 = sys.version_info.major == 3
 
 
@@ -432,7 +431,7 @@ class ContextManager(object):
             if p_arch.unicorn_arch is not None:
                 self.arch.unicorn_arch = p_arch.unicorn_arch
             if p_arch.unicorn_mode is not None:
-                self.arch.unicorn_mode= p_arch.unicorn_mode
+                self.arch.unicorn_mode = p_arch.unicorn_mode
         return self.arch
 
     def apply_once(self, what, once_arr):
@@ -936,70 +935,82 @@ class DisAssembler(Command):
                 off = args[0]
             ret = []
             t_s = 0
-            pc = cli.context_manager.get_context_offset()
             for i in cs.disasm(b, off):
                 if l > 0 and t_s > 0:
                     t_s += i.size
                     if t_s > l:
                         break
-                faddr = '0x%x' % i.address
-                if pc == i.address or pc + 1 == i.address:
-                    faddr = ' ' + Color.colorify(faddr, 'red highlight')
+                if cli.context_manager.get_context_offset() == i.address \
+                        or cli.context_manager.get_context_offset() + 1 == i.address:
                     if l > 0:
                         t_s += 1
-                is_jmp = False
-                if len(i.groups) > 0:
-                    if 1 in i.groups:
-                        is_jmp = True
-                if is_jmp:
-                    pst = False
-                    if self.cli.frida_script is not None:
-                        for op in i.operands:
-                            if op.type == 2:
-                                s_off = int(self.cli.to_x_32(op.imm), 16)
-                                try:
-                                    dbgs = self.cli.frida_script.exports.dbgsfa(s_off)
-                                    deep = self.cli.frida_script.exports.mr(s_off, 8)
-                                    if dbgs is not None:
-                                        sy = ' (%s - %s)' % (Color.colorify(dbgs['name'], 'red highlight'),
-                                                          Color.colorify(dbgs['moduleName'], 'bold'))
-                                    else:
-                                        sy = ''
-                                    ret.append("%s:\t%s\t%s%s" % (faddr,
-                                                                     Color.colorify(i.mnemonic.upper(), 'blue bold'),
-                                                                     i.op_str, sy))
-                                except:
-                                    deep = None
-                                pst = True
-                                if deep is not None:
-                                    t = 0
-                                    for i in cs.disasm(deep, s_off):
-                                        if t > 2:
-                                            break
-                                        faddr = Color.colorify('0x%x:' % i.address, 'gray highlight')
-                                        ret.append("%s %s\t%s\t%s" % (' ' * 4, faddr,
-                                                                    Color.colorify(i.mnemonic.upper(), 'gray bold'),
-                                                                    Color.colorify(i.op_str, 'gray')))
-                                        t += 1
-                    if not pst:
-                        ret.append("%s:\t%s\t%s" % (faddr, Color.colorify(i.mnemonic.upper(), 'blue highlight'),
-                                                    i.op_str))
-                else:
-                    ret.append("%s:\t%s\t%s" % (faddr,
-                                                Color.colorify(i.mnemonic.upper(), 'bold'),
-                                                i.op_str))
-
+                ret.append(self.instr_line(i, cs))
             return ret
 
     def __disasm_result__(self, result):
         self.cli.context_title('disasm')
-        printer.append('\n'.join(result))
+        log('\n'.join(result))
 
     def __disasm_store__(self, data):
         return None
 
+    @staticmethod
+    def instr_line(i, cs):
+        ret = []
+        faddr = '0x%x' % i.address
+        if cli.context_manager.get_context_offset() == i.address \
+                or cli.context_manager.get_context_offset() + 1 == i.address:
+            faddr = ' ' + Color.colorify(faddr, 'red highlight')
+        is_jmp = False
+        if len(i.groups) > 0:
+            if 1 in i.groups:
+                is_jmp = True
+        if is_jmp:
+            pst = False
+            if cli.frida_script is not None:
+                for op in i.operands:
+                    if op.type == 2:
+                        s_off = int(cli.to_x_32(op.imm), 16)
+                        try:
+                            dbgs = cli.frida_script.exports.dbgsfa(s_off)
+                            deep = cli.frida_script.exports.mr(s_off, 8)
+                            if dbgs is not None:
+                                sy = ' (%s - %s)' % (Color.colorify(dbgs['name'], 'red highlight'),
+                                                     Color.colorify(dbgs['moduleName'], 'bold'))
+                            else:
+                                sy = ''
+                            ret.append("%s:\t%s\t%s%s" % (faddr,
+                                                          Color.colorify(i.mnemonic.upper(), 'blue bold'),
+                                                          i.op_str, sy))
+                        except:
+                            deep = None
+                        pst = True
+                        if deep is not None:
+                            t = 0
+                            for i in cs.disasm(deep, s_off):
+                                if t > 2:
+                                    break
+                                faddr = Color.colorify('0x%x:' % i.address, 'gray highlight')
+                                ret.append("%s %s\t%s\t%s" % (' ' * 4, faddr,
+                                                              Color.colorify(i.mnemonic.upper(), 'gray bold'),
+                                                              Color.colorify(i.op_str, 'gray')))
+                                t += 1
+            if not pst:
+                ret.append("%s:\t%s\t%s" % (faddr, Color.colorify(i.mnemonic.upper(), 'blue highlight'),
+                                            i.op_str))
+        else:
+            ret.append("%s:\t%s\t%s" % (faddr,
+                                        Color.colorify(i.mnemonic.upper(), 'bold'),
+                                        i.op_str))
+        return '\n'.join(ret)
+
 
 class Emulator(Command):
+    def __init__(self, cli):
+        super().__init__(cli)
+
+        self.current_address = 0
+
     def get_command_info(self):
         return {
             'name': 'emulator',
@@ -1032,17 +1043,16 @@ class Emulator(Command):
 
         self.cs = capstone.Cs(self.cli.context_manager.get_arch().get_capstone_arch(),
                               self.cli.context_manager.get_arch().get_capstone_mode())
+        self.cs.detail = True
 
         self.uc = unicorn.Uc(self.cli.context_manager.get_arch().get_unicorn_arch(),
-                        self.cli.context_manager.get_arch().get_unicorn_mode())
-        module = json.loads(self.cli.frida_script.exports.fmbn(self.cli.context_manager.get_target_module()))
-        base = int(module['base'], 16)
-        self.uc.mem_map(base, module['size'])
-        self.uc.mem_write(base, self.cli.frida_script.exports.mrup(base, module['size']))
+                             self.cli.context_manager.get_arch().get_unicorn_mode())
+        self.map_region_by_addr(self.cli.context_manager.get_context_offset())
 
         for reg in self.cli.context_manager.get_context():
             try:
-                __reg = getattr(self.cli.context_manager.get_arch().get_unicorn_constants(), 'UC_ARM_REG_%s' % reg.upper())
+                __reg = getattr(self.cli.context_manager.get_arch().get_unicorn_constants(),
+                                'UC_ARM_REG_%s' % reg.upper())
                 self.uc.reg_write(__reg, int(self.cli.context_manager.get_context()[reg]['value'], 16))
             except:
                 pass
@@ -1055,27 +1065,45 @@ class Emulator(Command):
         log('starting emulation at %s' % Color.colorify(
             '0x%x' % self.cli.context_manager.get_context_offset(), 'red highlight'))
         try:
-            self.uc.emu_start(self.cli.context_manager.get_context_offset(), args[0])
+            self.until = args[0]
+            self.uc.emu_start(self.cli.context_manager.get_context_offset(), self.until)
         except Exception as e:
             log('error while running emulator: %s' % e)
         return None
 
     def hook_instr(self, uc, address, size, user_data):
+        self.current_address = address
         for i in self.cs.disasm(bytes(uc.mem_read(address, size)), address):
-            print("0x%x:\t%s\t%s" % (i.address, i.mnemonic, i.op_str))
+            log(DisAssembler.instr_line(i, self.cs))
 
     def hook_mem_access(self, uc, access, address, size, value, user_data):
         if access == unicorn.UC_MEM_WRITE:
-            print("-> Memory is being WRITE at 0x%x, data size = %u, data value = 0x%x" % (address, size, value))
+            log("memory is being WRITE at 0x%x, data size = %u, data value = 0x%x" % (address, size, value))
         else:
             try:
-                print("-> Memory is being READ at 0x%x, data size = %u, data value = 0x%x"
-                      % (address, size, int(self.uc.mem_read(address, size).encode('hex'), 16)))
+                log("memory is being READ at 0x%x, data size = %u, data value = 0x%x"
+                    % (address, size, int(self.uc.mem_read(address, size).hex(), 16)))
             except Exception as e:
-                print('-> hook mem access: failed to read at 0x%x - err: %s' % (address, e))
+                log('hook mem access: failed to read at 0x%x - err: %s' % (address, e))
 
     def hook_mem_unmapped(self, uc, access, address, size, value, user_data):
-        print('-> reading to an unmapped memory region at 0x%x' % address)
+        log('reading to an unmapped memory region at %s' % Color.colorify('0x%x' % address, 'red highlight'))
+        uc.emu_stop()
+        map_len = self.map_region_by_addr(address)
+        if map_len > 0:
+            uc.emu_start(self.current_address + 1, self.until)
+
+    def map_region_by_addr(self, addr):
+        range_info = self.cli.frida_script.exports.frba(addr)
+        if range_info is not None:
+            range_info = json.loads(range_info)
+            log('mapping %s at %s' % (Color.colorify(str(range_info['size']), 'green highlight'),
+                                      Color.colorify(range_info['base'], 'red highlight')))
+            base = int(range_info['base'], 16)
+            self.uc.mem_map(base, range_info['size'])
+            self.uc.mem_write(base, self.cli.frida_script.exports.mr(base, range_info['size']))
+            return range_info['size']
+        return 0
 
 
 class Find(Command):
@@ -2631,6 +2659,7 @@ class FridaCli(object):
                         [parts[3], cli.context_manager.get_context_offset() - 32]))
                     Backtrace(cli).__backtrace_result__(json.loads(parts[2]))
                     cli.context_manager.on(int(parts[1]))
+
                 Thread(target=print_post_context, args=(parts,)).start()
 
         else:
