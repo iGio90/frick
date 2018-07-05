@@ -1031,7 +1031,9 @@ class Emulator(Command):
         self.uc = unicorn.Uc(self.cli.context_manager.get_arch().get_unicorn_arch(),
                         self.cli.context_manager.get_arch().get_unicorn_mode())
         module = json.loads(self.cli.frida_script.exports.fmbn(self.cli.context_manager.get_target_module()))
-        self.uc.mem_map(int(module['base'], 16), module['size'])
+        base = int(module['base'], 16)
+        self.uc.mem_map(base, module['size'])
+        self.uc.mem_write(base, self.cli.frida_script.exports.mrup(base, module['size']))
 
         self.uc.hook_add(unicorn.UC_HOOK_CODE, self.hook_instr)
         self.uc.hook_add(unicorn.UC_HOOK_MEM_WRITE | unicorn.UC_HOOK_MEM_READ, self.hook_mem_access)
@@ -1040,9 +1042,6 @@ class Emulator(Command):
 
         log('starting emulation at %s' % Color.colorify(
             '0x%x' % self.cli.context_manager.get_context_offset(), 'red highlight'))
-        for i in self.cs.disasm(bytes(self.uc.mem_read(self.cli.context_manager.get_context_offset(), 32)),
-                                self.cli.context_manager.get_context_offset()):
-            print("0x%x:\t%s\t%s" % (i.address, i.mnemonic, i.op_str))
         self.uc.emu_start(self.cli.context_manager.get_context_offset(), args[0])
 
     def hook_instr(self, uc, address, size, user_data):

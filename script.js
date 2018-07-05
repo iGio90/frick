@@ -256,6 +256,15 @@ rpc.exports = {
             return null;
         }
     },
+    mrup: function (p, l) {
+        try {
+            Memory.protect(ptr(p), l, 'rwx');
+            return Memory.readByteArray(ptr(p), l);
+        } catch (err) {
+            console.log(err);
+            return null;
+        }
+    },
     mw: function (p, w) {
         try {
             p = ptr(p);
