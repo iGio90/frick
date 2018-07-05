@@ -194,7 +194,10 @@ class CommandManager(object):
                         cmd = attr(self.cli)
                         info = cmd.get_command_info()
                         if info is not None:
-                            self._map[info['name']] = cmd
+                            if 'target' in info:
+                                self._map[info['target']] = cmd
+                            else:
+                                self._map[info['name']] = cmd
                             if 'shortcuts' in info:
                                 for sh in info['shortcuts']:
                                     self._map[sh] = cmd
@@ -249,7 +252,7 @@ class CommandManager(object):
         if 'sub' in info and len(args) > 0:
             for sub in info['sub']:
                 found = False
-                if args[0] == sub['name']:
+                if args[0] == sub['name'] or ('target' in sub and args[0] == sub['target']):
                     found = True
                 elif 'shortcuts' in sub and args[0] in sub['shortcuts']:
                     found = True
@@ -319,7 +322,10 @@ class CommandManager(object):
             if s_info is not None:
                 info = s_info
                 try:
-                    f_exec = getattr(command, '__%s__' % s_info['name'])
+                    if 'target' in s_info:
+                        f_exec = getattr(command, '__%s__' % s_info['target'])
+                    else:
+                        f_exec = getattr(command, '__%s__' % s_info['name'])
                 except:
                     pass
                 s_args = s_args[1:]
@@ -336,7 +342,10 @@ class CommandManager(object):
 
         if f_exec is None:
             try:
-                f_exec = getattr(command, '__%s__' % info['name'])
+                if 'target' in info:
+                    f_exec = getattr(command, '__%s__' % info['target'])
+                else:
+                    f_exec = getattr(command, '__%s__' % info['name'])
             except:
                 pass
         if f_exec is None:
@@ -347,15 +356,18 @@ class CommandManager(object):
             try:
                 data = f_exec(formatted_args)
                 if data is not None:
+                    nn = 'name'
+                    if 'target' in info:
+                        nn = 'target'
                     if not store:
                         try:
-                            f_exec = getattr(command, '__%s_result__' % info['name'])
+                            f_exec = getattr(command, '__%s_result__' % info[nn])
                             f_exec(data)
                         except:
                             pass
                     else:
                         try:
-                            f_exec = getattr(command, '__%s_store__' % info['name'])
+                            f_exec = getattr(command, '__%s_store__' % info[nn])
                             data = f_exec(data)
                         except:
                             pass
@@ -999,6 +1011,9 @@ class Emulator(Command):
         }
 
     def __start__(self, args):
+        if self.cli.context_manager.get_arch() is None or self.cli.frida_script is None:
+            return None
+
         self.cs = capstone.Cs(self.cli.context_manager.get_arch().get_capstone_arch(),
                               self.cli.context_manager.get_arch().get_capstone_mode())
 
