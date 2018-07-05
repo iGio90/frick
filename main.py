@@ -1025,6 +1025,9 @@ class Emulator(Command):
 
         log('starting emulation at %s' % Color.colorify(
             '0x%x' % self.cli.context_manager.get_context_offset(), 'red highlight'))
+        for i in self.cs.disasm(bytes(self.uc.mem_read(self.cli.context_manager.get_context_offset(), 32)),
+                                self.cli.context_manager.get_context_offset()):
+            print("0x%x:\t%s\t%s" % (i.address, i.mnemonic, i.op_str))
         self.uc.emu_start(self.cli.context_manager.get_context_offset(), args[0])
 
     def hook_instr(self, uc, address, size, user_data):
