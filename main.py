@@ -28,6 +28,7 @@ import binascii
 import capstone
 import fcntl
 import frida
+import imp
 import json
 import os
 import script
@@ -1021,6 +1022,8 @@ class Emulator(Command):
         self.apix = '-<span style="color: red;">></span> '
         self.space = '&nbsp;'
 
+        self.hook_cb = None
+
     def get_command_info(self):
         return {
             'name': 'emulator',
@@ -1031,6 +1034,12 @@ class Emulator(Command):
             ],
             'sub': [
                 {
+                    'name': 'callback',
+                    'info': 'set instructions callback in arg0',
+                    'args': 1,
+                    'shortcuts': ['cb']
+                },
+                {
                     'name': 'start',
                     'info': 'start emulation with exit point in arg0',
                     'args': 1,
@@ -1038,6 +1047,11 @@ class Emulator(Command):
                 }
             ]
         }
+
+    def __callback__(self, args):
+        self.hook_cb = args[0]
+        log('%s set as instructions hook callback. make sure %s is in place.' %
+            (Color.colorify(args[0], 'green highlight'), Color.colorify('on_hook(uc, address, size)', 'bold')))
 
     def __start__(self, args):
         if self.cli.context_manager.get_arch() is None or self.cli.frida_script is None:
@@ -1076,6 +1090,10 @@ class Emulator(Command):
                 pass
 
         self.uc.hook_add(unicorn.UC_HOOK_CODE, self.hook_instr)
+
+        if self.hook_cb is not None:
+            self.hook_cb = imp.load_source('uc_hooks', self.hook_cb)
+
         self.uc.hook_add(unicorn.UC_HOOK_MEM_WRITE | unicorn.UC_HOOK_MEM_READ, self.hook_mem_access)
         self.uc.hook_add(unicorn.UC_HOOK_MEM_READ_UNMAPPED | unicorn.UC_HOOK_MEM_WRITE_UNMAPPED |
                          unicorn.UC_HOOK_MEM_FETCH_UNMAPPED, self.hook_mem_unmapped)
@@ -1099,9 +1117,10 @@ class Emulator(Command):
         self.current_instruction_size = size
 
         for i in self.cs.disasm(bytes(uc.mem_read(address, size)), address):
-            self.instr_count += 1
-            print('%u instructions traced, %u memory access\r' % (self.instr_count, self.mem_access_count), end='')
-            sys.stdout.flush()
+            if self.hook_cb is None:
+                self.instr_count += 1
+                print('%u instructions traced, %u memory access\r' % (self.instr_count, self.mem_access_count), end='')
+                sys.stdout.flush()
 
             faddr = '0x%x' % i.address
 
@@ -1132,8 +1151,12 @@ class Emulator(Command):
                                       '%s<strong>%s</strong>%s%s'
                                       % (faddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
 
+        if self.hook_cb is not None:
+            self.hook_cb.on_hook(uc, address, size)
+
     def hook_mem_access(self, uc, access, address, size, value, user_data):
-        self.mem_access_count += 1
+        if self.hook_cb is None:
+            self.mem_access_count += 1
         if access == unicorn.UC_MEM_WRITE:
             self.write_to_session(
                 '%s<strong>WRITE</strong> at <span style="color: #C36969">0x%x</span>, '

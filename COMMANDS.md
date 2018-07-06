@@ -33,9 +33,10 @@
 |  pointer  |  p,ptr     |  add a virtual address in arg0 with optional name in other args                   |
 
 # emulator sub commands
-|  command  |  short  |                   info                    |
-|-----------|---------|-------------------------------------------|
-|  start    |  s      |  start emulation with exit point in arg0  |
+|  command   |  short  |                   info                    |
+|------------|---------|-------------------------------------------|
+|  callback  |  cb     |  set instructions callback in arg0        |
+|  start     |  s      |  start emulation with exit point in arg0  |
 
 # find sub commands
 |  command  |   short    |                                info                                 |
