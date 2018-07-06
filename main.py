@@ -1018,11 +1018,12 @@ class Emulator(Command):
         self.current_address = 0
         self.current_instruction_size = 0
         self.is_jump = False
+        self.loading_required_maps = False
 
         self.apix = '-<span style="color: red;">></span> '
         self.space = '&nbsp;'
 
-        self.hook_cb = None
+        self.uc_impl = None
 
     def get_command_info(self):
         return {
@@ -1034,10 +1035,10 @@ class Emulator(Command):
             ],
             'sub': [
                 {
-                    'name': 'callback',
-                    'info': 'set instructions callback in arg0',
+                    'name': 'implementation',
+                    'info': 'set a custom unicorn script in arg0',
                     'args': 1,
-                    'shortcuts': ['cb']
+                    'shortcuts': ['i', 'impl']
                 },
                 {
                     'name': 'start',
@@ -1048,10 +1049,10 @@ class Emulator(Command):
             ]
         }
 
-    def __callback__(self, args):
-        self.hook_cb = args[0]
-        log('%s set as instructions hook callback. make sure %s is in place.' %
-            (Color.colorify(args[0], 'green highlight'), Color.colorify('on_hook(uc, offset, address, size)', 'bold')))
+    def __implementation__(self, args):
+        self.uc_impl = args[0]
+        log('%s has been set as custom implementation' %
+            (Color.colorify(args[0], 'green highlight')))
 
     def __start__(self, args):
         if self.cli.context_manager.get_arch() is None or self.cli.frida_script is None:
@@ -1071,8 +1072,8 @@ class Emulator(Command):
         self.uc = unicorn.Uc(self.cli.context_manager.get_arch().get_unicorn_arch(),
                              self.cli.context_manager.get_arch().get_unicorn_mode())
 
-        if self.hook_cb is not None:
-            self.hook_cb = imp.load_source('uc_hooks', self.hook_cb)
+        if self.uc_impl is not None:
+            self.uc_impl = imp.load_source('uc_hooks', self.uc_impl)
 
         if not os.path.exists('.emulator'):
             os.mkdir('.emulator')
@@ -1101,9 +1102,17 @@ class Emulator(Command):
         log('starting emulation at %s' % Color.colorify(
             '0x%x' % self.cli.context_manager.get_context_offset(), 'red highlight'))
 
-        if self.hook_cb is not None:
+        if self.uc_impl is not None:
             try:
-                self.hook_cb.on_ready(self.uc, self.cli.context_manager.get_base(),
+                req_offs = self.uc_impl.required_offsets()
+                self.loading_required_maps = True
+                for o in req_offs:
+                    self._ensure_mapped(o)
+                self.loading_required_maps = False
+            except:
+                pass
+            try:
+                self.uc_impl.on_ready(self.uc, self.cli.context_manager.get_base(),
                                       self.cli.context_manager.get_context_offset(), args[0])
             except:
                 pass
@@ -1122,14 +1131,14 @@ class Emulator(Command):
         self.current_address = address
         self.current_instruction_size = size
 
-        if self.hook_cb is not None:
+        if self.uc_impl is not None:
             try:
-                self.hook_cb.on_hook(uc, address - self.cli.context_manager.get_base(), address, size)
+                self.uc_impl.on_hook(uc, address - self.cli.context_manager.get_base(), address, size)
             except:
                 pass
 
         for i in self.cs.disasm(bytes(uc.mem_read(address, size)), address):
-            if self.hook_cb is None:
+            if self.uc_impl is None:
                 self.instr_count += 1
                 print('%u instructions traced, %u memory access\r' % (self.instr_count, self.mem_access_count), end='')
                 sys.stdout.flush()
@@ -1165,7 +1174,10 @@ class Emulator(Command):
                                       % (faddr, baddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
 
     def hook_mem_access(self, uc, access, address, size, value, user_data):
-        if self.hook_cb is None:
+        if self.loading_required_maps:
+            return
+
+        if self.uc_impl is None:
             self.mem_access_count += 1
         if access == unicorn.UC_MEM_WRITE:
             self.write_to_session(
@@ -1192,6 +1204,12 @@ class Emulator(Command):
             if self.cli.context_manager.get_arch().get_unicorn_mode() == unicorn.UC_MODE_THUMB:
                 start_addr += 1
             uc.emu_start(start_addr, start_addr + self.cli.context_manager.get_pointer_size())
+
+    def _ensure_mapped(self, offset):
+        try:
+            self.uc.mem_read(offset, 2)
+        except:
+            self.map_region_by_addr(offset)
 
     def map_region_by_addr(self, addr):
         range_info = self.cli.frida_script.exports.frba(addr)
