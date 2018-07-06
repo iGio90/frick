@@ -1107,7 +1107,7 @@ class Emulator(Command):
                 req_offs = self.uc_impl.required_offsets()
                 self.loading_required_maps = True
                 for o in req_offs:
-                    self._ensure_mapped(o)
+                    self._ensure_mapped(self.cli.context_manager.get_base() + o)
                 self.loading_required_maps = False
             except:
                 pass
