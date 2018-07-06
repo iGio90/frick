@@ -6,6 +6,7 @@
 |  backtrace  |  bt                             |                                                                                                                          |
 |  destruct   |  des,ds                         |  read at address arg0 for len arg1 and optional depth arg2                                                               |
 |  disasm     |  d,dis                          |  disassemble the given hex payload in arg0 or a pointer in arg0 with len in arg1                                         |
+|  emulator   |  e,emu                          |  unicorn emulator                                                                                                        |
 |  find       |  fi                             |  utilities to find stuffs                                                                                                |
 |  functions  |  fn,fu,fun,func,funct,function  |  list native functions                                                                                                   |
 |  help       |  h                              |                                                                                                                          |
@@ -30,6 +31,11 @@
 |-----------|------------|-----------------------------------------------------------------------------------|
 |  dtinit   |  dti,init  |  mark this target as dt_init function. on android we leak the base before dlopen  |
 |  pointer  |  p,ptr     |  add a virtual address in arg0 with optional name in other args                   |
+
+# emulator sub commands
+|  command  |  short  |                   info                    |
+|-----------|---------|-------------------------------------------|
+|  start    |  s      |  start emulation with exit point in arg0  |
 
 # find sub commands
 |  command  |   short    |                                info                                 |
@@ -98,7 +104,8 @@
 # set sub commands
 |  command   |  short  |           info            |
 |------------|---------|---------------------------|
-|  capstone  |  cs     |  capstone configurations  |
+|  capstone  |  c,cs   |  capstone configurations  |
+|  unicorn   |  u,uc   |  unicorn configurations   |
 
 ---
 # set capstone sub commands
@@ -106,4 +113,10 @@
 |-----------|------------|---------------------------------|
 |  arch     |  a,ar      |  set the capstone arch in arg0  |
 |  mode     |  m,md,mod  |  set the capstone mode in arg0  |
+
+# set unicorn sub commands
+|  command  |   short    |              info              |
+|-----------|------------|--------------------------------|
+|  arch     |  a,ar      |  set the unicorn arch in arg0  |
+|  mode     |  m,md,mod  |  set the unicorn mode in arg0  |
 

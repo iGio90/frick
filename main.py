@@ -1010,6 +1010,11 @@ class Emulator(Command):
         super().__init__(cli)
 
         self.current_address = 0
+        self.current_instruction_size = 0
+        self.is_jump = False
+
+        self.apix = '-<span style="color: red;">></span> '
+        self.space = '&nbsp;'
 
     def get_command_info(self):
         return {
@@ -1022,10 +1027,9 @@ class Emulator(Command):
             'sub': [
                 {
                     'name': 'start',
-                    'args': 1
-                },
-                {
-                    'name': 'stop'
+                    'info': 'start emulation with exit point in arg0',
+                    'args': 1,
+                    'shortcuts': ['s']
                 }
             ]
         }
@@ -1054,7 +1058,7 @@ class Emulator(Command):
         self.session_file = '.emulator/' + str(int(round(time.time() * 1000))) + '_' + \
                             ('0x%x.html' % self.cli.context_manager.get_context_offset())
         with open(self.session_file, 'w') as f:
-            f.write('<body text="white" bgcolor="#222222"><br>')
+            f.write('<body text="white" bgcolor="#222222" style="font-size: 1.2em"><br>')
 
         self.map_region_by_addr(self.cli.context_manager.get_context_offset())
 
@@ -1072,28 +1076,35 @@ class Emulator(Command):
                          unicorn.UC_HOOK_MEM_FETCH_UNMAPPED, self.hook_mem_unmapped)
 
         self.instr_count = 0
+        self.mem_access_count = 0
         log('starting emulation at %s' % Color.colorify(
             '0x%x' % self.cli.context_manager.get_context_offset(), 'red highlight'))
         try:
             self.uc.emu_start(self.cli.context_manager.get_context_offset(), args[0])
         except Exception as e:
             log('error while running emulator: %s' % e)
+        self.cli.edit_file(self.session_file)
         return None
 
     def hook_instr(self, uc, address, size, user_data):
+        if address > self.current_address + self.current_instruction_size or address < self.current_address:
+            self.write_to_session('<br>')
+
         self.current_address = address
+        self.current_instruction_size = size
+
         for i in self.cs.disasm(bytes(uc.mem_read(address, size)), address):
             self.instr_count += 1
-            print('tracked %u instruction\r' % self.instr_count, end='')
+            print('%u instructions traced, %u memory access\r' % (self.instr_count, self.mem_access_count), end='')
             sys.stdout.flush()
 
             faddr = '0x%x' % i.address
+
             is_jmp = False
             if len(i.groups) > 0:
                 if 1 in i.groups:
                     is_jmp = True
             if is_jmp:
-                pst = False
                 if cli.frida_script is not None:
                     for op in i.operands:
                         if op.type == 2:
@@ -1101,30 +1112,39 @@ class Emulator(Command):
                             dbgs = cli.frida_script.exports.dbgsfa(s_off)
                             if dbgs is not None:
                                 sy = ' (%s - %s)' % (dbgs['name'], dbgs['moduleName'])
-                            else:
-                                sy = ''
-                            self.write_to_session("%s:\t%s\t%s%s" % (faddr, i.mnemonic.upper(),
-                                                                     i.op_str, sy))
-                if not pst:
-                    self.write_to_session("%s:\t%s\t%s" % (faddr, i.mnemonic.upper(), i.op_str))
+                                self.write_to_session('<span style="color: '
+                                                      '#C36969">%s</span>:%s<strong>%s</strong>%s%s%s'
+                                                      % (faddr, self.space * 4, i.mnemonic.upper(),
+                                                         self.space * 4, i.op_str, sy))
+                                continue
+                self.write_to_session('<span style="color: #C36969">%s</span>:'
+                                      '%s<strong>%s</strong>%s%s'
+                                      % (faddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
             else:
-                self.write_to_session("%s:\t%s\t%s" % (faddr, i.mnemonic.upper(),
-                                            i.op_str))
+                self.write_to_session('<span style="color: #C36969">%s</span>:'
+                                      '%s<strong>%s</strong>%s%s'
+                                      % (faddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
 
     def hook_mem_access(self, uc, access, address, size, value, user_data):
+        self.mem_access_count += 1
         if access == unicorn.UC_MEM_WRITE:
             self.write_to_session(
-                "memory is being WRITE at 0x%x, data size = %u, data value = 0x%x" % (address, size, value))
+                '%s<strong>WRITE</strong> at <span style="color: #C36969">0x%x</span>, '
+                'data size = <strong>%u</strong>, '
+                'data value = <span style="color: #74AA7A">0x%x</span>' % (self.apix, address, size, value))
         else:
             try:
-                self.write_to_session("memory is being READ at 0x%x, data size = %u, data value = 0x%x"
-                                      % (address, size, int(self.uc.mem_read(address, size).hex(), 16)))
+                self.write_to_session('%s<strong>READ</strong> at <span style="color: #C36969">0x%x</span>,'
+                                      ' data size = <strong>%u</strong>, '
+                                      'data value = <span style="color: #74AA7A">0x%x</span>'
+                                      % (self.apix, address, size, int(self.uc.mem_read(address, size).hex(), 16)))
             except Exception as e:
-                self.write_to_session('hook mem access: failed to read at 0x%x - err: %s' % (address, e))
+                self.write_to_session('%sfailed to <strong>READ</strong> at '
+                                      '<span style="color: #C36969">0x%x</span> - err: %s' % (self.apix, address, e))
 
     def hook_mem_unmapped(self, uc, access, address, size, value, user_data):
-        self.write_to_session('reading to an unmapped memory region at %s' %
-                              Color.colorify('0x%x' % address, 'red highlight'))
+        self.write_to_session('%sreading to an unmapped memory region at '
+                              '<span style="color: #C36969">%s</span>' % (self.apix, address))
         uc.emu_stop()
         map_len = self.map_region_by_addr(address)
         if map_len > 0:
@@ -1137,17 +1157,14 @@ class Emulator(Command):
         range_info = self.cli.frida_script.exports.frba(addr)
         if range_info is not None:
             range_info = json.loads(range_info)
-            self.write_to_session('mapping %s at %s' % (str(range_info['size']), range_info['base']))
+            self.write_to_session('%smapping <strong>%s</strong> at '
+                                  '<span style="color: #C36969">%s</span>'
+                                  % (self.apix, str(range_info['size']), range_info['base']))
             base = int(range_info['base'], 16)
             self.uc.mem_map(base, range_info['size'])
             self.uc.mem_write(base, self.cli.frida_script.exports.mr(base, range_info['size']))
             return range_info['size']
         return 0
-
-    def __stop__(self):
-        if self.cli.get_emulator() is not None:
-            log('emulator stopped')
-            self.cli.set_emulator(None)
 
     def write_to_session(self, what):
         with open(self.session_file, 'a') as f:
@@ -2188,12 +2205,7 @@ class Scripts(Command):
         if not os.path.exists(s_path):
             with open(s_path, 'a'):
                 os.utime(s_path, None)
-
-        editor = os.getenv('EDITOR')
-        if editor:
-            os.system(editor + ' ' + s_path)
-        else:
-            webbrowser.open(s_path)
+        self.cli.edit_file(s_path)
 
     def __load__(self, args):
         with open(args[0], 'r') as f:
@@ -2264,11 +2276,7 @@ class Session(Command):
 
     def __open__(self, args):
         if os.path.exists('.session'):
-            editor = os.getenv('EDITOR')
-            if editor:
-                os.system(editor + ' ' + '.session')
-            else:
-                webbrowser.open('.session')
+            self.cli.edit_file('.sessions')
         return None
 
     def __save__(self, args):
@@ -2613,6 +2621,14 @@ class FridaCli(object):
         x = pack(">i", s)
         while x[0] in ('\0', 0): x = x[1:]
         return cli.to_hex2(x)
+
+    @staticmethod
+    def edit_file(f):
+        editor = os.getenv('EDITOR')
+        if editor:
+            os.system(editor + ' ' + f)
+        else:
+            webbrowser.open(f)
 
     @staticmethod
     def get_terminal_size():
