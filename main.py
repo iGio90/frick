@@ -1051,7 +1051,7 @@ class Emulator(Command):
     def __callback__(self, args):
         self.hook_cb = args[0]
         log('%s set as instructions hook callback. make sure %s is in place.' %
-            (Color.colorify(args[0], 'green highlight'), Color.colorify('on_hook(uc, address, size)', 'bold')))
+            (Color.colorify(args[0], 'green highlight'), Color.colorify('on_hook(uc, offset, address, size)', 'bold')))
 
     def __start__(self, args):
         if self.cli.context_manager.get_arch() is None or self.cli.frida_script is None:
@@ -1103,7 +1103,8 @@ class Emulator(Command):
 
         if self.hook_cb is not None:
             try:
-                self.hook_cb.on_ready(self.uc, self.cli.context_manager.get_context_offset(), args[0])
+                self.hook_cb.on_ready(self.uc, self.cli.context_manager.get_base(),
+                                      self.cli.context_manager.get_context_offset(), args[0])
             except:
                 pass
 
