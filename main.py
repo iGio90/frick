@@ -963,7 +963,7 @@ class DisAssembler(Command):
             faddr = ' ' + Color.colorify(faddr, 'red highlight')
         is_jmp = False
         if len(i.groups) > 0:
-            if 1 in i.groups:
+            if 1 in i.groups or 149 in i.groups or (len(i.groups) == 1 and 150 in i.groups):
                 is_jmp = True
         if is_jmp:
             pst = False
@@ -973,30 +973,35 @@ class DisAssembler(Command):
                         s_off = int(cli.to_x_32(op.imm), 16)
                         try:
                             dbgs = cli.frida_script.exports.dbgsfa(s_off)
-                            deep = cli.frida_script.exports.mr(s_off, 8)
                             if dbgs is not None:
                                 sy = ' (%s - %s)' % (Color.colorify(dbgs['name'], 'red highlight'),
                                                      Color.colorify(dbgs['moduleName'], 'bold'))
                             else:
                                 sy = ''
+                            pst = True
                             ret.append("%s:\t%s\t%s%s" % (faddr,
                                                           Color.colorify(i.mnemonic.upper(), 'blue bold'),
                                                           i.op_str, sy))
                         except:
+                            pass
+                        try:
+                            deep = cli.frida_script.exports.mr(s_off, 8)
+                        except:
                             deep = None
-                        pst = True
+
                         if deep is not None:
                             t = 0
                             for i in cs.disasm(deep, s_off):
                                 if t > 2:
                                     break
                                 faddr = Color.colorify('0x%x:' % i.address, 'gray highlight')
+                                pst = True
                                 ret.append("%s %s\t%s\t%s" % (' ' * 4, faddr,
                                                               Color.colorify(i.mnemonic.upper(), 'gray bold'),
                                                               Color.colorify(i.op_str, 'gray')))
                                 t += 1
             if not pst:
-                ret.append("%s:\t%s\t%s" % (faddr, Color.colorify(i.mnemonic.upper(), 'blue highlight'),
+                ret.append("%s:\t%s\t%s" % (faddr, Color.colorify(i.mnemonic.upper(), 'blue bold'),
                                             i.op_str))
         else:
             ret.append("%s:\t%s\t%s" % (faddr,
