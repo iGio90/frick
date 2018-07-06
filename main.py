@@ -1135,6 +1135,7 @@ class Emulator(Command):
                 sys.stdout.flush()
 
             faddr = '0x%x' % i.address
+            baddr = i.address - self.cli.context_manager.get_base()
 
             is_jmp = False
             if len(i.groups) > 0:
@@ -1151,17 +1152,17 @@ class Emulator(Command):
                                 sy = ' (%s - %s)' % (dbgs['name'], dbgs['moduleName'])
                                 pr = True
                                 self.write_to_session('<span style="color: '
-                                                      '#C36969">%s</span>:%s<strong>%s</strong>%s%s%s'
-                                                      % (faddr, self.space * 4, i.mnemonic.upper(),
+                                                      '#C36969">%s</span> (<strong>0x%x</strong>):%s<strong>%s</strong>%s%s%s'
+                                                      % (faddr, baddr, self.space * 4, i.mnemonic.upper(),
                                                          self.space * 4, i.op_str, sy))
                 if not pr:
-                    self.write_to_session('<span style="color: #C36969">%s</span>:'
+                    self.write_to_session('<span style="color: #C36969">%s</span> (<strong>0x%x</strong>):'
                                           '%s<strong>%s</strong>%s%s'
-                                          % (faddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
+                                          % (faddr, baddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
             else:
-                self.write_to_session('<span style="color: #C36969">%s</span>:'
+                self.write_to_session('<span style="color: #C36969">%s</span> (<strong>0x%x</strong>):'
                                       '%s<strong>%s</strong>%s%s'
-                                      % (faddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
+                                      % (faddr, baddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
 
     def hook_mem_access(self, uc, access, address, size, value, user_data):
         if self.hook_cb is None:
