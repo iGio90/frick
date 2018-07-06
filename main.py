@@ -1121,6 +1121,12 @@ class Emulator(Command):
         self.current_address = address
         self.current_instruction_size = size
 
+        if self.hook_cb is not None:
+            try:
+                self.hook_cb.on_hook(uc, address - self.cli.context_manager.get_base(), address, size)
+            except:
+                pass
+
         for i in self.cs.disasm(bytes(uc.mem_read(address, size)), address):
             if self.hook_cb is None:
                 self.instr_count += 1
@@ -1155,12 +1161,6 @@ class Emulator(Command):
                 self.write_to_session('<span style="color: #C36969">%s</span>:'
                                       '%s<strong>%s</strong>%s%s'
                                       % (faddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
-
-        if self.hook_cb is not None:
-            try:
-                self.hook_cb.on_hook(uc, address - self.cli.context_manager.get_base(), address, size)
-            except:
-                pass
 
     def hook_mem_access(self, uc, access, address, size, value, user_data):
         if self.hook_cb is None:
