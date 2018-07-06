@@ -1105,6 +1105,7 @@ class Emulator(Command):
                 if 1 in i.groups:
                     is_jmp = True
             if is_jmp:
+                pr = False
                 if cli.frida_script is not None:
                     for op in i.operands:
                         if op.type == 2:
@@ -1112,14 +1113,15 @@ class Emulator(Command):
                             dbgs = cli.frida_script.exports.dbgsfa(s_off)
                             if dbgs is not None:
                                 sy = ' (%s - %s)' % (dbgs['name'], dbgs['moduleName'])
+                                pr = True
                                 self.write_to_session('<span style="color: '
                                                       '#C36969">%s</span>:%s<strong>%s</strong>%s%s%s'
                                                       % (faddr, self.space * 4, i.mnemonic.upper(),
                                                          self.space * 4, i.op_str, sy))
-                                continue
-                self.write_to_session('<span style="color: #C36969">%s</span>:'
-                                      '%s<strong>%s</strong>%s%s'
-                                      % (faddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
+                if not pr:
+                    self.write_to_session('<span style="color: #C36969">%s</span>:'
+                                          '%s<strong>%s</strong>%s%s'
+                                          % (faddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
             else:
                 self.write_to_session('<span style="color: #C36969">%s</span>:'
                                       '%s<strong>%s</strong>%s%s'
