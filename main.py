@@ -1158,7 +1158,7 @@ class Emulator(Command):
 
         if self.hook_cb is not None:
             try:
-                self.hook_cb.on_hook(uc, address, size)
+                self.hook_cb.on_hook(uc, address - self.cli.context_manager.get_base(), address, size)
             except:
                 pass
 
