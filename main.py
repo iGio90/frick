@@ -1068,9 +1068,11 @@ class Emulator(Command):
         self.cs = capstone.Cs(self.cli.context_manager.get_arch().get_capstone_arch(),
                               self.cli.context_manager.get_arch().get_capstone_mode())
         self.cs.detail = True
-
         self.uc = unicorn.Uc(self.cli.context_manager.get_arch().get_unicorn_arch(),
                              self.cli.context_manager.get_arch().get_unicorn_mode())
+
+        if self.hook_cb is not None:
+            self.hook_cb = imp.load_source('uc_hooks', self.hook_cb)
 
         if not os.path.exists('.emulator'):
             os.mkdir('.emulator')
@@ -1090,10 +1092,6 @@ class Emulator(Command):
                 pass
 
         self.uc.hook_add(unicorn.UC_HOOK_CODE, self.hook_instr)
-
-        if self.hook_cb is not None:
-            self.hook_cb = imp.load_source('uc_hooks', self.hook_cb)
-
         self.uc.hook_add(unicorn.UC_HOOK_MEM_WRITE | unicorn.UC_HOOK_MEM_READ, self.hook_mem_access)
         self.uc.hook_add(unicorn.UC_HOOK_MEM_READ_UNMAPPED | unicorn.UC_HOOK_MEM_WRITE_UNMAPPED |
                          unicorn.UC_HOOK_MEM_FETCH_UNMAPPED, self.hook_mem_unmapped)
@@ -1102,6 +1100,13 @@ class Emulator(Command):
         self.mem_access_count = 0
         log('starting emulation at %s' % Color.colorify(
             '0x%x' % self.cli.context_manager.get_context_offset(), 'red highlight'))
+
+        if self.hook_cb is not None:
+            try:
+                self.hook_cb.on_ready(self.uc, self.cli.context_manager.get_context_offset(), args[0])
+            except:
+                pass
+
         try:
             self.uc.emu_start(self.cli.context_manager.get_context_offset(), args[0])
         except Exception as e:
@@ -1152,7 +1157,10 @@ class Emulator(Command):
                                       % (faddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
 
         if self.hook_cb is not None:
-            self.hook_cb.on_hook(uc, address, size)
+            try:
+                self.hook_cb.on_hook(uc, address, size)
+            except:
+                pass
 
     def hook_mem_access(self, uc, access, address, size, value, user_data):
         if self.hook_cb is None:
