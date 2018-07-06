@@ -1144,7 +1144,7 @@ class Emulator(Command):
 
     def hook_mem_unmapped(self, uc, access, address, size, value, user_data):
         self.write_to_session('%sreading to an unmapped memory region at '
-                              '<span style="color: #C36969">%s</span>' % (self.apix, address))
+                              '<span style="color: #C36969">0x%x</span>' % (self.apix, address))
         uc.emu_stop()
         map_len = self.map_region_by_addr(address)
         if map_len > 0:
