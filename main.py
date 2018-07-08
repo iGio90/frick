@@ -1022,6 +1022,11 @@ class Emulator(Command):
         self.is_jump = False
         self.loading_required_maps = False
 
+        self.report = True
+        self.split_report = False
+        self.session_file = ''
+        self.sessions_file_split = 0
+
         self.apix = '-<span style="color: red;">></span> '
         self.space = '&nbsp;'
 
@@ -1068,6 +1073,11 @@ class Emulator(Command):
             log('a target attached is needed before using emulator')
             return None
 
+        if 'no-report' in args:
+            self.report = False
+        if 'split-report' in args:
+            self.split_report = True
+
         self.cs = capstone.Cs(self.cli.context_manager.get_arch().get_capstone_arch(),
                               self.cli.context_manager.get_arch().get_capstone_mode())
         self.cs.detail = True
@@ -1076,11 +1086,13 @@ class Emulator(Command):
 
         if self.uc_impl is not None:
             self.uc_impl = imp.load_source('uc_hooks', self.uc_impl)
-        else:
+
+        if self.report:
             if not os.path.exists('.emulator'):
                 os.mkdir('.emulator')
-            self.session_file = '.emulator/' + str(int(round(time.time() * 1000))) + '_' + \
-                                ('0x%x.html' % self.cli.context_manager.get_context_offset())
+            self.session_fp = '.emulator/' + str(int(round(time.time() * 1000))) + '_' + \
+                              ('0x%x' % self.cli.context_manager.get_context_offset())
+            self.session_file = self.session_fp + '.html'
             with open(self.session_file, 'w') as f:
                 f.write('<body text="white" bgcolor="#222222" style="font-size: 1.2em"><br>')
 
@@ -1135,53 +1147,59 @@ class Emulator(Command):
                 self.uc_impl.on_hook(uc, address - self.cli.context_manager.get_base(), address, size)
             except:
                 pass
-            return
 
-        if address > self.current_address + self.current_instruction_size or address < self.current_address:
-            self.write_to_session('<br>')
+        if self.report:
+            if address > self.current_address + self.current_instruction_size or address < self.current_address:
+                self.write_to_session('<br>')
 
-        for i in self.cs.disasm(bytes(uc.mem_read(address, size)), address):
-            if self.uc_impl is None:
-                self.instr_count += 1
-                print('%u instructions traced, %u memory access\r' % (self.instr_count, self.mem_access_count), end='')
-                sys.stdout.flush()
+            for i in self.cs.disasm(bytes(uc.mem_read(address, size)), address):
+                if self.uc_impl is None:
+                    self.instr_count += 1
+                    print('%u instructions traced, %u memory access\r' % (self.instr_count, self.mem_access_count), end='')
+                    sys.stdout.flush()
 
-            faddr = '0x%x' % i.address
-            baddr = i.address - self.cli.context_manager.get_base()
+                faddr = '0x%x' % i.address
+                baddr = i.address - self.cli.context_manager.get_base()
 
-            is_jmp = False
-            if len(i.groups) > 0:
-                if 1 in i.groups:
-                    is_jmp = True
-            if is_jmp:
-                pr = False
-                if cli.frida_script is not None:
-                    for op in i.operands:
-                        if op.type == 2:
-                            s_off = int(cli.to_x_32(op.imm), 16)
-                            dbgs = cli.frida_script.exports.dbgsfa(s_off)
-                            if dbgs is not None:
-                                sy = ' (%s - %s)' % (dbgs['name'], dbgs['moduleName'])
-                                pr = True
-                                self.write_to_session('<span style="color: '
-                                                      '#C36969">%s</span> (<strong>0x%x</strong>):%s<strong>%s</strong>%s%s%s'
-                                                      % (faddr, baddr, self.space * 4, i.mnemonic.upper(),
-                                                         self.space * 4, i.op_str, sy))
-                if not pr:
+                is_jmp = False
+                if len(i.groups) > 0:
+                    if 1 in i.groups:
+                        is_jmp = True
+                if is_jmp:
+                    pr = False
+                    if cli.frida_script is not None:
+                        for op in i.operands:
+                            if op.type == 2:
+                                s_off = int(cli.to_x_32(op.imm), 16)
+                                try:
+                                    dbgs = cli.frida_script.exports.dbgsfa(s_off)
+                                except:
+                                    dbgs = None
+
+                                if dbgs is not None:
+                                    pr = True
+                                    sy = ' (%s - %s)' % (dbgs['name'], dbgs['moduleName'])
+                                    self.write_to_session('<span style="color: '
+                                                          '#C36969">%s</span> (<strong>0x%x</strong>):%s<strong>%s'
+                                                          '</strong>%s%s%s '
+                                                          % (faddr, baddr, self.space * 4, i.mnemonic.upper(),
+                                                             self.space * 4, i.op_str, sy))
+                    if not pr:
+                        self.write_to_session('<span style="color: #C36969">%s</span> (<strong>0x%x</strong>):'
+                                              '%s<strong>%s</strong>%s%s'
+                                              % (faddr, baddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
+                else:
                     self.write_to_session('<span style="color: #C36969">%s</span> (<strong>0x%x</strong>):'
                                           '%s<strong>%s</strong>%s%s'
                                           % (faddr, baddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
-            else:
-                self.write_to_session('<span style="color: #C36969">%s</span> (<strong>0x%x</strong>):'
-                                      '%s<strong>%s</strong>%s%s'
-                                      % (faddr, baddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
 
     def hook_mem_access(self, uc, access, address, size, value, user_data):
         if self.loading_required_maps:
             return
 
-        if self.uc_impl is None:
-            self.mem_access_count += 1
+        self.mem_access_count += 1
+
+        if self.report:
             if access == unicorn.UC_MEM_WRITE:
                 self.write_to_session(
                     '%s<strong>WRITE</strong> at <span style="color: #C36969">0x%x</span>, '
@@ -1198,7 +1216,7 @@ class Emulator(Command):
                                           '<span style="color: #C36969">0x%x</span> - err: %s' % (self.apix, address, e))
 
     def hook_mem_unmapped(self, uc, access, address, size, value, user_data):
-        if self.uc_impl is None:
+        if self.report:
             self.write_to_session('%sreading to an unmapped memory region at '
                                   '<span style="color: #C36969">0x%x</span>' % (self.apix, address))
         uc.emu_stop()
@@ -1219,7 +1237,7 @@ class Emulator(Command):
         range_info = self.cli.frida_script.exports.frba(addr)
         if range_info is not None:
             range_info = json.loads(range_info)
-            if self.uc_impl is None:
+            if self.report:
                 self.write_to_session('%smapping <strong>%s</strong> at '
                                       '<span style="color: #C36969">%s</span>'
                                       % (self.apix, str(range_info['size']), range_info['base']))
@@ -1230,6 +1248,12 @@ class Emulator(Command):
         return 0
 
     def write_to_session(self, what):
+        if self.split_report and os.path.getsize(self.session_file) >> 20 > 7:
+            self.sessions_file_split += 1
+            self.session_file = self.session_fp + ('-%u.html' % self.sessions_file_split)
+            with open(self.session_file, 'w') as f:
+                f.write('<body text="white" bgcolor="#222222" style="font-size: 1.2em"><br>')
+
         with open(self.session_file, 'a') as f:
             f.write(what + '<br>')
 
