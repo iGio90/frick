@@ -39,9 +39,10 @@
 |  start           |  s       |  start emulation with exit point in arg0  |
 
 # find sub commands
-|  command  |   short    |                                info                                 |
-|-----------|------------|---------------------------------------------------------------------|
-|  export   |  e,ex,exp  |  find export name arg0 in target module or in optional module arg1  |
+|  command  |   short    |                                   info                                    |
+|-----------|------------|---------------------------------------------------------------------------|
+|  export   |  e,ex,exp  |  find export name arg0 in target module or in optional module arg1        |
+|  pattern  |  p,pat     |  search in address arg0 and len in arg1 for pattern in args 2 (deadbeef)  |
 
 # functions sub commands
 |  command  |  short  |                                              info                                              |

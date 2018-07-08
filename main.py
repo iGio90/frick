@@ -25,6 +25,8 @@
 
 import atexit
 import binascii
+import re
+
 import capstone
 import fcntl
 import frida
@@ -1074,13 +1076,13 @@ class Emulator(Command):
 
         if self.uc_impl is not None:
             self.uc_impl = imp.load_source('uc_hooks', self.uc_impl)
-
-        if not os.path.exists('.emulator'):
-            os.mkdir('.emulator')
-        self.session_file = '.emulator/' + str(int(round(time.time() * 1000))) + '_' + \
-                            ('0x%x.html' % self.cli.context_manager.get_context_offset())
-        with open(self.session_file, 'w') as f:
-            f.write('<body text="white" bgcolor="#222222" style="font-size: 1.2em"><br>')
+        else:
+            if not os.path.exists('.emulator'):
+                os.mkdir('.emulator')
+            self.session_file = '.emulator/' + str(int(round(time.time() * 1000))) + '_' + \
+                                ('0x%x.html' % self.cli.context_manager.get_context_offset())
+            with open(self.session_file, 'w') as f:
+                f.write('<body text="white" bgcolor="#222222" style="font-size: 1.2em"><br>')
 
         self.map_region_by_addr(self.cli.context_manager.get_context_offset())
 
@@ -1104,10 +1106,10 @@ class Emulator(Command):
 
         if self.uc_impl is not None:
             try:
-                req_offs = self.uc_impl.required_offsets()
+                req_offs = self.uc_impl.required_offsets(self.uc, self.cli.context_manager.get_base())
                 self.loading_required_maps = True
                 for o in req_offs:
-                    self._ensure_mapped(self.cli.context_manager.get_base() + o)
+                    self._ensure_mapped(o)
                 self.loading_required_maps = False
             except:
                 pass
@@ -1125,9 +1127,6 @@ class Emulator(Command):
         return None
 
     def hook_instr(self, uc, address, size, user_data):
-        if address > self.current_address + self.current_instruction_size or address < self.current_address:
-            self.write_to_session('<br>')
-
         self.current_address = address
         self.current_instruction_size = size
 
@@ -1136,6 +1135,10 @@ class Emulator(Command):
                 self.uc_impl.on_hook(uc, address - self.cli.context_manager.get_base(), address, size)
             except:
                 pass
+            return
+
+        if address > self.current_address + self.current_instruction_size or address < self.current_address:
+            self.write_to_session('<br>')
 
         for i in self.cs.disasm(bytes(uc.mem_read(address, size)), address):
             if self.uc_impl is None:
@@ -1179,24 +1182,25 @@ class Emulator(Command):
 
         if self.uc_impl is None:
             self.mem_access_count += 1
-        if access == unicorn.UC_MEM_WRITE:
-            self.write_to_session(
-                '%s<strong>WRITE</strong> at <span style="color: #C36969">0x%x</span>, '
-                'data size = <strong>%u</strong>, '
-                'data value = <span style="color: #74AA7A">0x%x</span>' % (self.apix, address, size, value))
-        else:
-            try:
-                self.write_to_session('%s<strong>READ</strong> at <span style="color: #C36969">0x%x</span>,'
-                                      ' data size = <strong>%u</strong>, '
-                                      'data value = <span style="color: #74AA7A">0x%x</span>'
-                                      % (self.apix, address, size, int(self.uc.mem_read(address, size).hex(), 16)))
-            except Exception as e:
-                self.write_to_session('%sfailed to <strong>READ</strong> at '
-                                      '<span style="color: #C36969">0x%x</span> - err: %s' % (self.apix, address, e))
+            if access == unicorn.UC_MEM_WRITE:
+                self.write_to_session(
+                    '%s<strong>WRITE</strong> at <span style="color: #C36969">0x%x</span>, '
+                    'data size = <strong>%u</strong>, '
+                    'data value = <span style="color: #74AA7A">0x%x</span>' % (self.apix, address, size, value))
+            else:
+                try:
+                    self.write_to_session('%s<strong>READ</strong> at <span style="color: #C36969">0x%x</span>,'
+                                          ' data size = <strong>%u</strong>, '
+                                          'data value = <span style="color: #74AA7A">0x%x</span>'
+                                          % (self.apix, address, size, int(self.uc.mem_read(address, size).hex(), 16)))
+                except Exception as e:
+                    self.write_to_session('%sfailed to <strong>READ</strong> at '
+                                          '<span style="color: #C36969">0x%x</span> - err: %s' % (self.apix, address, e))
 
     def hook_mem_unmapped(self, uc, access, address, size, value, user_data):
-        self.write_to_session('%sreading to an unmapped memory region at '
-                              '<span style="color: #C36969">0x%x</span>' % (self.apix, address))
+        if self.uc_impl is None:
+            self.write_to_session('%sreading to an unmapped memory region at '
+                                  '<span style="color: #C36969">0x%x</span>' % (self.apix, address))
         uc.emu_stop()
         map_len = self.map_region_by_addr(address)
         if map_len > 0:
@@ -1215,9 +1219,10 @@ class Emulator(Command):
         range_info = self.cli.frida_script.exports.frba(addr)
         if range_info is not None:
             range_info = json.loads(range_info)
-            self.write_to_session('%smapping <strong>%s</strong> at '
-                                  '<span style="color: #C36969">%s</span>'
-                                  % (self.apix, str(range_info['size']), range_info['base']))
+            if self.uc_impl is None:
+                self.write_to_session('%smapping <strong>%s</strong> at '
+                                      '<span style="color: #C36969">%s</span>'
+                                      % (self.apix, str(range_info['size']), range_info['base']))
             base = int(range_info['base'], 16)
             self.uc.mem_map(base, range_info['size'])
             self.uc.mem_write(base, self.cli.frida_script.exports.mr(base, range_info['size']))
@@ -1244,6 +1249,12 @@ class Find(Command):
                     'args': 1,
                     'info': 'find export name arg0 in target module or in optional module arg1',
                     'shortcuts': ['e', 'ex', 'exp']
+                },
+                {
+                    'name': 'pattern',
+                    'args': 3,
+                    'info': 'search in address arg0 and len in arg1 for pattern in args 2 (deadbeef)',
+                    'shortcuts': ['p', 'pat']
                 }
             ]
         }
@@ -1264,6 +1275,25 @@ class Find(Command):
 
     def __export_store__(self, data):
         return int(data[1], 16)
+
+    def __pattern__(self, args):
+        if self.cli.frida_script is None:
+            return
+
+        adr = args[0]
+        lt = args[1]
+        pattern = ' '.join(re.findall('..', str(args[2])))
+        return [self.cli.frida_script.exports.mss(adr, lt, pattern)]
+
+    def __pattern_result__(self, result):
+        arr = json.loads(result[1])
+        if len(arr) == 0:
+            log('nothing found for')
+        else:
+            log('%s in:' % Color.colorify('found', 'bold'))
+            for r in arr:
+                res = arr[r]
+                log(Color.colorify(res['address'], 'red highlight'))
 
 
 class Function(Command):

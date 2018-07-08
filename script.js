@@ -265,6 +265,13 @@ rpc.exports = {
             return null;
         }
     },
+    mss: function (p, l, w) {
+        try {
+            return JSON.stringify(Memory.scanSync(ptr(p), l, w));
+        } catch (e) {
+            return null;
+        }
+    },
     mw: function (p, w) {
         try {
             p = ptr(p);
