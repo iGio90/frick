@@ -959,6 +959,9 @@ class DisAssembler(Command):
 
     @staticmethod
     def instr_line(i, cs):
+        isbs = binascii.hexlify(i.bytes).decode('utf8')
+        if len(isbs) < cli.context_manager.get_pointer_size() * 2:
+            isbs += ' ' * ((cli.context_manager.get_pointer_size() * 2) - len(isbs))
         ret = []
         faddr = '0x%x' % i.address
         if cli.context_manager.get_context_offset() == i.address \
@@ -982,9 +985,10 @@ class DisAssembler(Command):
                             else:
                                 sy = ''
                             pst = True
-                            ret.append("%s:\t%s\t%s%s" % (faddr,
-                                                          Color.colorify(i.mnemonic.upper(), 'blue bold'),
-                                                          i.op_str, sy))
+                            ret.append("%s:\t%s\t%s\t%s%s" % (faddr,
+                                                              Color.colorify(isbs, 'yellow highlight'),
+                                                              Color.colorify(i.mnemonic.upper(), 'blue bold'),
+                                                              i.op_str, sy))
                         except:
                             pass
                         try:
@@ -999,17 +1003,24 @@ class DisAssembler(Command):
                                     break
                                 faddr = Color.colorify('0x%x:' % i.address, 'gray highlight')
                                 pst = True
-                                ret.append("%s %s\t%s\t%s" % (' ' * 4, faddr,
-                                                              Color.colorify(i.mnemonic.upper(), 'gray bold'),
-                                                              Color.colorify(i.op_str, 'gray')))
+                                isbs = binascii.hexlify(i.bytes).decode('utf8')
+                                if len(isbs) < cli.context_manager.get_pointer_size():
+                                    isbs += ' ' * (cli.context_manager.get_pointer_size() - len(isbs))
+                                ret.append("%s %s\t%s\t%s\t%s" % (' ' * 4, faddr,
+                                                                  Color.colorify(isbs, 'gray highlight'),
+                                                                  Color.colorify(i.mnemonic.upper(), 'gray bold'),
+                                                                  Color.colorify(i.op_str, 'gray')))
                                 t += 1
             if not pst:
-                ret.append("%s:\t%s\t%s" % (faddr, Color.colorify(i.mnemonic.upper(), 'blue bold'),
-                                            i.op_str))
+                ret.append("%s:\t%s\t%s\t%s" % (faddr,
+                                                Color.colorify(isbs, 'yellow highlight'),
+                                                Color.colorify(i.mnemonic.upper(), 'blue bold'),
+                                                i.op_str))
         else:
-            ret.append("%s:\t%s\t%s" % (faddr,
-                                        Color.colorify(i.mnemonic.upper(), 'bold'),
-                                        i.op_str))
+            ret.append("%s:\t%s\t%s\t%s" % (faddr,
+                                            Color.colorify(isbs, 'yellow highlight'),
+                                            Color.colorify(i.mnemonic.upper(), 'bold'),
+                                            i.op_str))
         return '\n'.join(ret)
 
 
@@ -1155,7 +1166,8 @@ class Emulator(Command):
             for i in self.cs.disasm(bytes(uc.mem_read(address, size)), address):
                 if self.uc_impl is None:
                     self.instr_count += 1
-                    print('%u instructions traced, %u memory access\r' % (self.instr_count, self.mem_access_count), end='')
+                    print('%u instructions traced, %u memory access\r' % (self.instr_count, self.mem_access_count),
+                          end='')
                     sys.stdout.flush()
 
                 faddr = '0x%x' % i.address
@@ -1187,11 +1199,14 @@ class Emulator(Command):
                     if not pr:
                         self.write_to_session('<span style="color: #C36969">%s</span> (<strong>0x%x</strong>):'
                                               '%s<strong>%s</strong>%s%s'
-                                              % (faddr, baddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
+                                              % (faddr, baddr, self.space * 4, i.mnemonic.upper(), self.space * 4,
+                                                 i.op_str))
                 else:
                     self.write_to_session('<span style="color: #C36969">%s</span> (<strong>0x%x</strong>):'
                                           '%s<strong>%s</strong>%s%s'
-                                          % (faddr, baddr, self.space * 4, i.mnemonic.upper(), self.space * 4, i.op_str))
+                                          % (
+                                              faddr, baddr, self.space * 4, i.mnemonic.upper(), self.space * 4,
+                                              i.op_str))
 
     def hook_mem_access(self, uc, access, address, size, value, user_data):
         if self.loading_required_maps:
@@ -1213,7 +1228,8 @@ class Emulator(Command):
                                           % (self.apix, address, size, int(self.uc.mem_read(address, size).hex(), 16)))
                 except Exception as e:
                     self.write_to_session('%sfailed to <strong>READ</strong> at '
-                                          '<span style="color: #C36969">0x%x</span> - err: %s' % (self.apix, address, e))
+                                          '<span style="color: #C36969">0x%x</span> - err: %s' % (
+                                              self.apix, address, e))
 
     def hook_mem_unmapped(self, uc, access, address, size, value, user_data):
         if self.report:
@@ -1468,7 +1484,6 @@ class Help(Command):
             st += '\n'
             st += '    ' * depth
             st += '%s' % cmd_info['info']
-
         return st
 
 
