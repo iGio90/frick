@@ -186,6 +186,25 @@ class Arm(Arch):
         r += ['sp', 'pc', 'lr']
         return r
 
+class Arm64(Arch):
+    def __init__(self):
+        super(Arm64, self).__init__()
+        self.unicorn_arch = unicorn.UC_ARCH_ARM64
+        self.unicorn_mode = unicorn.UC_MODE_ARM
+        self.capstone_arch = capstone.CS_ARCH_ARM64
+        self.capstone_mode = capstone.CS_MODE_ARM
+
+    def get_unicorn_constants(self):
+        return unicorn.arm_const
+
+    def get_registers(self):
+        r = []
+        for i in range(0, 29):
+            r.append('x' + str(i))
+        r += ['sp', 'pc', 'fp','lr']
+        return r
+
+
 
 class CommandManager(object):
     def __init__(self, cli):
@@ -361,28 +380,28 @@ class CommandManager(object):
             return None
         else:
             formatted_args = self._format_args(args)
-            try:
-                data = f_exec(formatted_args)
-                if data is not None:
-                    nn = 'name'
-                    if 'target' in info:
-                        nn = 'target'
-                    if not store:
-                        try:
-                            f_exec = getattr(command, '__%s_result__' % info[nn])
-                            f_exec(data)
-                        except:
-                            pass
-                    else:
-                        try:
-                            f_exec = getattr(command, '__%s_store__' % info[nn])
-                            data = f_exec(data)
-                        except:
-                            pass
-                return data
-            except Exception as e:
-                log('error while running command %s: %s' % (info['name'], e))
-                return None
+            #try:
+            data = f_exec(formatted_args)
+            if data is not None:
+                nn = 'name'
+                if 'target' in info:
+                    nn = 'target'
+                if not store:
+                    try:
+                        f_exec = getattr(command, '__%s_result__' % info[nn])
+                        f_exec(data)
+                    except:
+                        pass
+                else:
+                    try:
+                        f_exec = getattr(command, '__%s_store__' % info[nn])
+                        data = f_exec(data)
+                    except:
+                        pass
+            return data
+            #except Exception as e:
+            log('error while running command %s: %s' % (info['name'], e))
+            return None
 
 
 class ContextManager(object):
@@ -423,6 +442,9 @@ class ContextManager(object):
         p_arch = self.arch
         if arch == 'arm':
             self.arch = Arm()
+        if arch == 'arm64':
+            self.arch = Arm64()
+
         self.add_value('arch', arch)
         if p_arch is not None and self.arch is not None:
             # copy capstone stuffs from previous arch, we could be in the point
@@ -518,23 +540,25 @@ class ContextManager(object):
             all_registers = self.context.keys()
         for r in all_registers:
             have_sub = False
-            if 'sub' in self.context[r]:
-                have_sub = True
-                value = Color.colorify(self.context[r]['value'], 'red highlight')
-            else:
-                value = Color.colorify(self.context[r]['value'], 'green highlight')
-            reg_name = r.upper()
-            while len(reg_name) < 4:
-                reg_name += ' '
-            p = '%s: %s' % (Color.colorify(reg_name, 'bold'), value)
-            if have_sub:
-                subs = self.context[r]['sub']
-                for i in range(0, len(subs)):
-                    if i != len(subs) - 1:
-                        p += ' -> %s' % Color.colorify(subs[i], 'red highligh')
-                    else:
-                        p += ' -> %s' % Color.colorify(subs[i], 'green highligh')
-            printer.append(p)
+            
+            if 'value' in self.context[r]:
+                if 'sub' in self.context[r]:
+                    have_sub = True
+                    value = Color.colorify(self.context[r]['value'], 'red highlight')
+                else:
+                    value = Color.colorify(self.context[r]['value'], 'green highlight')
+                reg_name = r.upper()
+                while len(reg_name) < 4:
+                    reg_name += ' '
+                p = '%s: %s' % (Color.colorify(reg_name, 'bold'), value)
+                if have_sub:
+                    subs = self.context[r]['sub']
+                    for i in range(0, len(subs)):
+                        if i != len(subs) - 1:
+                            p += ' -> %s' % Color.colorify(subs[i], 'red highligh')
+                        else:
+                            p += ' -> %s' % Color.colorify(subs[i], 'green highligh')
+                printer.append(p)
 
     def save(self):
         if os.path.exists('.session'):
@@ -558,7 +582,7 @@ class ContextManager(object):
                 ext += '\n'.join(arr)
                 ext += '\nend\n'
         if self.target_package is not '':
-            ext += 'attach %s %s\n' % (self.target_package, self.target_module)
+            ext += 'spawn %s %s\n' % (self.target_package, self.target_module)
         if ext is not '':
             with open('.session', 'w') as f:
                 f.write(ext)
@@ -765,7 +789,46 @@ class Attach(Command):
             if not self.cli.bind_device(5):
                 log('failed to connected to remote frida server')
                 return None
-        pid = self.cli.frida_device.spawn(package)
+        log('Attach process %s' % package)
+        pid = script.get_prc_id(package)
+        log('Process pid: %s' % pid)
+        self.cli.frida_process = self.cli.frida_device.attach(package)
+
+        log("frida %s" % Color.colorify('attached', 'bold'))
+        
+        self.cli.frida_script = self.cli.frida_process.create_script(script.get_script(
+            pid,
+            module,
+            self.cli.context_manager.get_target_offsets(),
+            self.cli.context_manager.get_dtinit_target_offsets()
+        ))
+        log("script %s" % Color.colorify('injected', 'bold'))
+        self.cli.frida_script.on('message', self.cli.on_frida_message)
+        self.cli.frida_script.on('destroyed', self.cli.on_frida_script_destroyed)
+        self.cli.frida_script.load()
+        self.cli.context_manager.set_target(package, module)
+        return None
+
+class Spawn(Command):
+    def get_command_info(self):
+        return {
+            'name': 'spawn',
+            'args': 1,
+            'info': 'spawm to target package name in arg0 with target module name in arg1',
+            'shortcuts': [
+                'att'
+            ]
+        }
+    def __spawn__(self, args):
+        package = args[0]
+        module = args[1]
+        if not module.endswith('.so'):
+            module += '.so'
+        if self.cli.frida_device is None:
+            if not self.cli.bind_device(5):
+                log('failed to connected to remote frida server')
+                return None
+        pid = self.cli.frida_device.spawn([package])
         self.cli.frida_process = self.cli.frida_device.attach(pid)
         log("frida %s" % Color.colorify('attached', 'bold'))
         self.cli.frida_script = self.cli.frida_process.create_script(script.get_script(
@@ -908,7 +971,6 @@ class DisAssembler(Command):
         if self.cli.context_manager.get_base() == 0:
             log('a target attached is needed before using disasm')
             return None
-
         if self.cli.context_manager.get_arch() is None:
             log('this arch is not yet supported :( - but you can still use set command to manually configure')
             return None
@@ -952,8 +1014,10 @@ class DisAssembler(Command):
 
     def __disasm_result__(self, result):
         self.cli.context_title('disasm')
-        log('\n'.join(result))
-
+        try:
+            log('\n'.join(result))
+        except:
+            log('disasm context fail %s' % result)
     def __disasm_store__(self, data):
         return None
 
@@ -1026,6 +1090,7 @@ class DisAssembler(Command):
 
 class Emulator(Command):
     def __init__(self, cli):
+        
         super().__init__(cli)
 
         self.current_address = 0
@@ -1042,6 +1107,7 @@ class Emulator(Command):
         self.space = '&nbsp;'
 
         self.uc_impl = None
+
 
     def get_command_info(self):
         return {
@@ -2560,10 +2626,11 @@ class FridaCli(object):
         self.frida_device = None
         self.frida_process = None
         self.frida_script = None
-
+        
         self.initialized = False
 
         self.bind_device()
+        
         self.cmd_manager = CommandManager(self)
         self.context_manager = ContextManager(self)
 
@@ -2591,6 +2658,7 @@ class FridaCli(object):
     def bind_device(self, timeout=0):
         try:
             self.frida_device = frida.get_usb_device(timeout)
+            log("Found device: %s" % self.frida_device)
             self.frida_device.on('lost', FridaCli.on_device_detached)
             return True
         except:
@@ -2744,8 +2812,15 @@ class FridaCli(object):
     @staticmethod
     def to_x_32(s):
         from struct import pack
-        if not s: return '0'
-        x = pack(">i", s)
+        if not s: 
+            return '0'
+        if cli.context_manager.get_arch().__class__.__name__ == 'Arm64':
+            x = pack(">q",s)
+        elif cli.context_manager.get_arch().__class__.__name__=='Arm':
+            x = pack(">i", s)
+        else:
+            log("Arch error")
+            return '0'
         while x[0] in ('\0', 0): x = x[1:]
         return cli.to_hex2(x)
 
@@ -2795,7 +2870,6 @@ class FridaCli(object):
             except:
                 print(payload)
                 return
-
             parts = message['payload'].split(':::')
             try:
                 id = int(parts[0])
