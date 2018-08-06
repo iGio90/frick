@@ -42,6 +42,7 @@ import termios
 import time
 import unicorn
 import webbrowser
+import subprocess
 
 import readline as readline
 
@@ -129,6 +130,19 @@ def log_multicol(what):
             row = ''
     printer.append('\n'.join(f_rows))
 
+def get_prc_id(procname):
+	all_prc = subprocess.check_output('adb shell ps'.split())
+	if type(all_prc) is bytes:
+		prcs=all_prc.decode('utf-8').split('\n')
+	elif type(all_prc) is str:
+		prcs = all_prc.split('\n')
+
+	prc_id = ''
+	for prc in prcs:
+		if procname in prc:
+			prc_id = prc.split()[1]
+			break
+	return prc_id
 
 class Arch(object):
     def __init__(self):
@@ -203,8 +217,6 @@ class Arm64(Arch):
             r.append('x' + str(i))
         r += ['sp', 'pc', 'fp','lr']
         return r
-
-
 
 class CommandManager(object):
     def __init__(self, cli):
@@ -380,28 +392,28 @@ class CommandManager(object):
             return None
         else:
             formatted_args = self._format_args(args)
-            #try:
-            data = f_exec(formatted_args)
-            if data is not None:
-                nn = 'name'
-                if 'target' in info:
-                    nn = 'target'
-                if not store:
-                    try:
-                        f_exec = getattr(command, '__%s_result__' % info[nn])
-                        f_exec(data)
-                    except:
-                        pass
-                else:
-                    try:
-                        f_exec = getattr(command, '__%s_store__' % info[nn])
-                        data = f_exec(data)
-                    except:
-                        pass
-            return data
-            #except Exception as e:
-            log('error while running command %s: %s' % (info['name'], e))
-            return None
+            try:
+                data = f_exec(formatted_args)
+                if data is not None:
+                    nn = 'name'
+                    if 'target' in info:
+                        nn = 'target'
+                    if not store:
+                        try:
+                            f_exec = getattr(command, '__%s_result__' % info[nn])
+                            f_exec(data)
+                        except:
+                            pass
+                    else:
+                        try:
+                            f_exec = getattr(command, '__%s_store__' % info[nn])
+                            data = f_exec(data)
+                        except:
+                            pass
+                return data
+            except Exception as e:
+                log('error while running command %s: %s' % (info['name'], e))
+                return None
 
 
 class ContextManager(object):
@@ -789,26 +801,28 @@ class Attach(Command):
             if not self.cli.bind_device(5):
                 log('failed to connected to remote frida server')
                 return None
-        log('Attach process %s' % package)
-        pid = script.get_prc_id(package)
-        log('Process pid: %s' % pid)
-        self.cli.frida_process = self.cli.frida_device.attach(package)
+        log("Attach process %s" % package)
+        pid = get_prc_id(package)
+        if pid:
+            log("Process pid: %s" % pid)
+            self.cli.frida_process = self.cli.frida_device.attach(package)
 
-        log("frida %s" % Color.colorify('attached', 'bold'))
-        
-        self.cli.frida_script = self.cli.frida_process.create_script(script.get_script(
-            pid,
-            module,
-            self.cli.context_manager.get_target_offsets(),
-            self.cli.context_manager.get_dtinit_target_offsets()
-        ))
-        log("script %s" % Color.colorify('injected', 'bold'))
-        self.cli.frida_script.on('message', self.cli.on_frida_message)
-        self.cli.frida_script.on('destroyed', self.cli.on_frida_script_destroyed)
-        self.cli.frida_script.load()
-        self.cli.context_manager.set_target(package, module)
-        return None
-
+            log("frida %s" % Color.colorify('attached', 'bold'))
+            
+            self.cli.frida_script = self.cli.frida_process.create_script(script.get_script(
+                pid,
+                module,
+                self.cli.context_manager.get_target_offsets(),
+                self.cli.context_manager.get_dtinit_target_offsets()
+            ))
+            log("script %s" % Color.colorify('injected', 'bold'))
+            self.cli.frida_script.on('message', self.cli.on_frida_message)
+            self.cli.frida_script.on('destroyed', self.cli.on_frida_script_destroyed)
+            self.cli.frida_script.load()
+            self.cli.context_manager.set_target(package, module)
+        else:
+            log("Unable to find process %s "% package)
+    
 class Spawn(Command):
     def get_command_info(self):
         return {
@@ -1090,7 +1104,6 @@ class DisAssembler(Command):
 
 class Emulator(Command):
     def __init__(self, cli):
-        
         super().__init__(cli)
 
         self.current_address = 0
@@ -1107,7 +1120,6 @@ class Emulator(Command):
         self.space = '&nbsp;'
 
         self.uc_impl = None
-
 
     def get_command_info(self):
         return {
@@ -2630,7 +2642,6 @@ class FridaCli(object):
         self.initialized = False
 
         self.bind_device()
-        
         self.cmd_manager = CommandManager(self)
         self.context_manager = ContextManager(self)
 
@@ -2870,6 +2881,7 @@ class FridaCli(object):
             except:
                 print(payload)
                 return
+
             parts = message['payload'].split(':::')
             try:
                 id = int(parts[0])
