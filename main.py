@@ -42,7 +42,6 @@ import termios
 import time
 import unicorn
 import webbrowser
-import subprocess
 
 import readline as readline
 
@@ -129,20 +128,6 @@ def log_multicol(what):
             h_iter = 0
             row = ''
     printer.append('\n'.join(f_rows))
-
-def get_prc_id(procname):
-	all_prc = subprocess.check_output('adb shell ps'.split())
-	if type(all_prc) is bytes:
-		prcs=all_prc.decode('utf-8').split('\n')
-	elif type(all_prc) is str:
-		prcs = all_prc.split('\n')
-
-	prc_id = ''
-	for prc in prcs:
-		if procname in prc:
-			prc_id = prc.split()[1]
-			break
-	return prc_id
 
 class Arch(object):
     def __init__(self):
@@ -802,8 +787,8 @@ class Attach(Command):
                 log('failed to connected to remote frida server')
                 return None
         log("Attach process %s" % package)
-        pid = get_prc_id(package)
-        if pid:
+        try:
+            pid = self.cli.frida_device.get_process(package).pid 
             log("Process pid: %s" % pid)
             self.cli.frida_process = self.cli.frida_device.attach(package)
 
@@ -820,7 +805,7 @@ class Attach(Command):
             self.cli.frida_script.on('destroyed', self.cli.on_frida_script_destroyed)
             self.cli.frida_script.load()
             self.cli.context_manager.set_target(package, module)
-        else:
+        except:
             log("Unable to find process %s "% package)
     
 class Spawn(Command):
