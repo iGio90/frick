@@ -130,6 +130,7 @@ def log_multicol(what):
             row = ''
     printer.append('\n'.join(f_rows))
 
+
 class Arch(object):
     def __init__(self):
         self.unicorn_arch = None
@@ -203,6 +204,7 @@ class Arm64(Arch):
             r.append('x' + str(i))
         r += ['sp', 'pc', 'fp','lr']
         return r
+
 
 class CommandManager(object):
     def __init__(self, cli):
@@ -538,7 +540,7 @@ class ContextManager(object):
             all_registers = self.context.keys()
         for r in all_registers:
             have_sub = False
-            
+
             if 'value' in self.context[r]:
                 if 'sub' in self.context[r]:
                     have_sub = True
@@ -789,12 +791,12 @@ class Attach(Command):
                 return None
         log("Attach process %s" % package)
         try:
-            pid = self.cli.frida_device.get_process(package).pid 
+            pid = self.cli.frida_device.get_process(package).pid
             log("Process pid: %s" % pid)
             self.cli.frida_process = self.cli.frida_device.attach(package)
 
             log("frida %s" % Color.colorify('attached', 'bold'))
-            
+
             self.cli.frida_script = self.cli.frida_process.create_script(script.get_script(
                 pid,
                 module,
@@ -808,7 +810,7 @@ class Attach(Command):
             self.cli.context_manager.set_target(package, module)
         except:
             log("Unable to find process %s "% package)
-    
+
 class Spawn(Command):
     def get_command_info(self):
         return {
@@ -2624,7 +2626,7 @@ class FridaCli(object):
         self.frida_device = None
         self.frida_process = None
         self.frida_script = None
-        
+
         self.initialized = False
 
         self.bind_device()
@@ -2809,7 +2811,7 @@ class FridaCli(object):
     @staticmethod
     def to_x_32(s):
         from struct import pack
-        if not s: 
+        if not s:
             return '0'
         if cli.context_manager.get_arch().__class__.__name__ == 'Arm64':
             x = pack(">q",s)
