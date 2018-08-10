@@ -58,7 +58,7 @@ function setup() {
     } else {
         setTimeout(function() {
             var m = Process.findModuleByName(module);
-            if (m !== null || typeof m !== 'undefined') {
+            if (m !== null && typeof m !== 'undefined') {
                 base = m.base;
                 send('0:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
                 for (var k in pTargets) {
