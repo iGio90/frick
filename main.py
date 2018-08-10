@@ -22,6 +22,7 @@
 # SOFTWARE.
 #
 #
+from __future__ import print_function
 
 import atexit
 import binascii
@@ -1089,7 +1090,7 @@ class DisAssembler(Command):
 
 class Emulator(Command):
     def __init__(self, cli):
-        super().__init__(cli)
+        super(self).__init__(cli)
 
         self.current_address = 0
         self.current_instruction_size = 0
