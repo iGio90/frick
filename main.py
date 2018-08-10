@@ -2870,7 +2870,7 @@ class FridaCli(object):
             try:
                 payload.index(':::')
             except:
-                print(payload)
+                log(payload)
                 return
 
             parts = message['payload'].split(':::')

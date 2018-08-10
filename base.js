@@ -175,12 +175,16 @@ function cli(pt, context) {
 function setupBase() {
     gn_handler = Memory.alloc(8);
     Memory.protect(gn_handler, 8, 'rwx');
-    Interceptor.replace(gn_handler, new NativeCallback(function (sig) {
-        while (sleep) {
-            Thread.sleep(1);
-        }
-        return sig;
-    }, 'int', ['int']));
+    try {
+        Interceptor.replace(gn_handler, new NativeCallback(function (sig) {
+            while (sleep) {
+                Thread.sleep(1);
+            }
+            return sig;
+        }, 'int', ['int']));
+    } catch (e) {
+        send('Failed to create native handler for signal. :(')
+    }
 }
 
 function hexToBytes(hex) {

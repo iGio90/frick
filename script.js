@@ -32,11 +32,6 @@ function setup() {
                         base = this.context.r2;
                         send('99:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
 
-                        if (Process.findModuleByName('libg.so') !== null) {
-                            Interceptor.detachAll();
-                            return;
-                        }
-
                         for (var k in dtInitTargets) {
                             att(base.add(k));
                         }
@@ -62,10 +57,13 @@ function setup() {
         });
     } else {
         setTimeout(function() {
-            base = Process.findModuleByName(module).base;
-            send('0:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
-            for (var k in pTargets) {
-                att(base.add(k));
+            var m = Process.findModuleByName(module);
+            if (m !== null || typeof m !== 'undefined') {
+                base = m.base;
+                send('0:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
+                for (var k in pTargets) {
+                    att(base.add(k));
+                }
             }
             postSetup();
         }, 250);
