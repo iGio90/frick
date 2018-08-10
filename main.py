@@ -187,6 +187,7 @@ class Arm(Arch):
         r += ['sp', 'pc', 'lr']
         return r
 
+
 class Arm64(Arch):
     def __init__(self):
         super(Arm64, self).__init__()
@@ -811,42 +812,6 @@ class Attach(Command):
         except:
             log("Unable to find process %s "% package)
 
-class Spawn(Command):
-    def get_command_info(self):
-        return {
-            'name': 'spawn',
-            'args': 1,
-            'info': 'spawm to target package name in arg0 with target module name in arg1',
-            'shortcuts': [
-                'att'
-            ]
-        }
-    def __spawn__(self, args):
-        package = args[0]
-        module = args[1]
-        if not module.endswith('.so'):
-            module += '.so'
-        if self.cli.frida_device is None:
-            if not self.cli.bind_device(5):
-                log('failed to connected to remote frida server')
-                return None
-        pid = self.cli.frida_device.spawn([package])
-        self.cli.frida_process = self.cli.frida_device.attach(pid)
-        log("frida %s" % Color.colorify('attached', 'bold'))
-        self.cli.frida_script = self.cli.frida_process.create_script(script.get_script(
-            pid,
-            module,
-            self.cli.context_manager.get_target_offsets(),
-            self.cli.context_manager.get_dtinit_target_offsets()
-        ))
-        log("script %s" % Color.colorify('injected', 'bold'))
-        self.cli.frida_device.resume(package)
-        self.cli.frida_script.on('message', self.cli.on_frida_message)
-        self.cli.frida_script.on('destroyed', self.cli.on_frida_script_destroyed)
-        self.cli.frida_script.load()
-        self.cli.context_manager.set_target(package, module)
-        return None
-
 
 class Backtrace(Command):
     def get_command_info(self):
@@ -1092,7 +1057,7 @@ class DisAssembler(Command):
 
 class Emulator(Command):
     def __init__(self, cli):
-        super(self).__init__(cli)
+        super(Emulator, self).__init__(cli)
 
         self.current_address = 0
         self.current_instruction_size = 0
@@ -2618,6 +2583,44 @@ class Set(Command):
 
         log('mode not found. use one of:')
         log(' '.join(sorted(mode_list)).replace('UC_MODE_', '').lower())
+        return None
+
+
+class Spawn(Command):
+    def get_command_info(self):
+        return {
+            'name': 'spawn',
+            'args': 1,
+            'info': 'spawm the target package name in arg0 with target module name in arg1',
+            'shortcuts': [
+                'att'
+            ]
+        }
+
+    def __spawn__(self, args):
+        package = args[0]
+        module = args[1]
+        if not module.endswith('.so'):
+            module += '.so'
+        if self.cli.frida_device is None:
+            if not self.cli.bind_device(5):
+                log('failed to connected to remote frida server')
+                return None
+        pid = self.cli.frida_device.spawn([package])
+        self.cli.frida_process = self.cli.frida_device.attach(pid)
+        log("frida %s" % Color.colorify('attached', 'bold'))
+        self.cli.frida_script = self.cli.frida_process.create_script(script.get_script(
+            pid,
+            module,
+            self.cli.context_manager.get_target_offsets(),
+            self.cli.context_manager.get_dtinit_target_offsets()
+        ))
+        log("script %s" % Color.colorify('injected', 'bold'))
+        self.cli.frida_device.resume(package)
+        self.cli.frida_script.on('message', self.cli.on_frida_message)
+        self.cli.frida_script.on('destroyed', self.cli.on_frida_script_destroyed)
+        self.cli.frida_script.load()
+        self.cli.context_manager.set_target(package, module)
         return None
 
 

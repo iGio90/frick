@@ -24,6 +24,7 @@
 |  scripts    |  sc,scr,script                  |  manage custom frida scripts                                                                                             |
 |  session    |  s,ss                           |                                                                                                                          |
 |  set        |                                 |                                                                                                                          |
+|  spawn      |  att                            |  spawm the target package name in arg0 with target module name in arg1                                                   |
 
 ---
 # add sub commands
