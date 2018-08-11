@@ -2304,6 +2304,9 @@ class Run(Command):
         }
 
     def __run__(self, args):
+        if self.cli.frida_script is None:
+            log('frida script is not created or destroyed.')
+            return None
         self.cli.frida_script.exports.c()
         for s in self.cli.get_scripts():
             sc = self.cli.get_scripts()[s]
