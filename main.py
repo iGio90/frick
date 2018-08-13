@@ -558,7 +558,12 @@ class ContextManager(object):
                         if i != len(subs) - 1:
                             p += ' -> %s' % Color.colorify(subs[i], 'red highligh')
                         else:
-                            p += ' -> %s' % Color.colorify(subs[i], 'green highligh')
+                            ccolor = 'green'
+                            if 'noval' in self.context[r]:
+                                ccolor = 'red'
+                            p += ' -> %s' % Color.colorify(subs[i], '%s highligh' % ccolor)
+                if 'strval' in self.context[r]:
+                    p += ' | %s' % Color.colorify(self.context[r]['strval'], 'yellow highlight')
                 printer.append(p)
 
     def save(self):

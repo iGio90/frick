@@ -19,15 +19,33 @@ function sendContext() {
         context[reg] = {
             'value': what
         };
+
+        var last = what;
+        var shouldReadStr = false;
+
         try {
             var rr = Memory.readPointer(what);
+            last = rr;
             context[reg]['sub'] = [rr];
             for (var k=0;k<8;k++) {
                 rr = Memory.readPointer(rr);
+                last = rr;
                 context[reg]['sub'].push(rr);
             }
-        } catch(err) {}
+            context[reg]['noval'] = true;
+        } catch(err) {
+            shouldReadStr = true;
+        }
+
+        if (shouldReadStr) {
+            var sval = hexToStr(last.toString().substring(2));
+            if (sval === '') {
+                sval = '\'\'';
+            }
+            context[reg]['strval'] = sval;
+        }
     }
+
     send('2:::' + cOff + ':::' + JSON.stringify(context));
 }
 
@@ -205,6 +223,15 @@ function bytesToHex(b) {
         hexStr += hex;
     }
     return hexStr;
+}
+
+function hexToStr(hex) {
+    var str = '';
+    for (var i = 0; i < hex.length; i += 2) {
+        var v = parseInt(hex.substr(i, 2), 16);
+        if (v) str += String.fromCharCode(v);
+    }
+    return str;
 }
 
 var c_exp = {
