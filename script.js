@@ -1,13 +1,19 @@
 var base = 0x0;
 var targets = {};
-var linker = Process.findModuleByName('linker');
+var linker = null;
+if (Process.arch === 'arm') {
+    linker = Process.findModuleByName('linker');
+} else if (Process.arch === 'arm64') {
+    linker = Process.findModuleByName('linker64');
+}
 
 function setup() {
-    if (linker !== null) {
+    var pre_mf = Process.findModuleByName(module);
+    if (linker !== null && pre_mf === null) {
         var isLoadingTarget = false;
         var rdI = Interceptor.attach(Module.findExportByName(libc, "open"), {
-            onEnter: function() {
-                var what = Memory.readUtf8String(this.context.r0);
+            onEnter: function(args) {
+                var what = Memory.readUtf8String(args[0]);
                 if (what.indexOf(module) >= 0) {
                     isLoadingTarget = true;
                 }
@@ -29,7 +35,11 @@ function setup() {
                     onLeave: function (ret) {
                         ppI.detach();
 
-                        base = this.context.r2;
+                        if (Process.arch === 'arm') {
+                            base = this.context.r2;
+                        } else if (Process.arch === 'arm64') {
+                            base = this.context.x2;
+                        }
                         send('99:::' + base + ':::' + Process.arch + ':::' + Process.pointerSize);
 
                         for (var k in dtInitTargets) {
