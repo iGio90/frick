@@ -2872,6 +2872,11 @@ class FridaCli(object):
             printer.append(title)
 
     @staticmethod
+    def create_dumps_path_if_needed():
+        if not os.path.exists('.dumps'):
+            os.mkdir('.dumps')
+
+    @staticmethod
     def on_frida_message(message, data):
         if 'payload' in message:
             payload = message['payload']
@@ -2882,12 +2887,24 @@ class FridaCli(object):
                 return
 
             parts = message['payload'].split(':::')
+
             try:
                 id = int(parts[0])
             except:
                 id = -1
 
             if id < 0:
+                if parts[0] == 'wtf':
+                    FridaCli.create_dumps_path_if_needed()
+                    with open('.dumps/log_' + str(time.time()), 'w') as f:
+                        f.write(parts[1])
+                    return
+                elif parts[1] == 'wbtf':
+                    FridaCli.create_dumps_path_if_needed()
+                    with open('.dumps/dump_' + str(time.time()), 'wb') as f:
+                        f.write(data)
+                    return
+
                 log(message)
                 return
 

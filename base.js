@@ -190,6 +190,22 @@ function cli(context) {
     }
 }
 
+function writeToFile(what) {
+    wtf(what);
+}
+
+function writeBinaryToFile(what) {
+    wbtf(what);
+}
+
+function wtf(what) {
+    send("wtf:::" + what)
+}
+
+function wbtf(what) {
+    send("wbtf:::", what)
+}
+
 function setupBase() {
     gn_handler = Memory.alloc(8);
     Memory.protect(gn_handler, 8, 'rwx');

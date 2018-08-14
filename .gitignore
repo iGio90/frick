@@ -66,3 +66,4 @@ venv.bak/
 fridacli.iml
 .scripts
 .emulator
+.dumps
