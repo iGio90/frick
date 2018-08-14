@@ -193,16 +193,17 @@ function cli(context) {
 function setupBase() {
     gn_handler = Memory.alloc(8);
     Memory.protect(gn_handler, 8, 'rwx');
-    try {
-        Interceptor.replace(gn_handler, new NativeCallback(function (sig) {
-            while (sleep) {
-                Thread.sleep(1);
-            }
-            return sig;
-        }, 'int', ['int']));
-    } catch (e) {
-        send('Failed to create native handler for signal. :(')
+    if (Process.arch === 'arm64') {
+        // write a fake instruction on arm64
+        // sub sp, sp, #0x0
+        Memory.writeByteArray(gn_handler, [0xFF, 0x03, 0x00, 0xD1]);
     }
+    Interceptor.replace(gn_handler, new NativeCallback(function (sig) {
+        while (sleep) {
+            Thread.sleep(1);
+        }
+        return sig;
+    }, 'int', ['int']));
 }
 
 function hexToBytes(hex) {
