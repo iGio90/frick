@@ -1714,6 +1714,41 @@ class Inject(Command):
                                            Color.colorify(mi['base'], 'red bold')))
 
 
+class Java(Command):
+    def get_command_info(self):
+        return {
+            'name': 'java',
+            'args': 1,
+            'info': 'play with java stuffs',
+            'shortcuts': [
+                'j', 'jv'
+            ],
+            'sub': [
+                {
+                    'name': 'hook',
+                    'args': 1,
+                    'shortcuts': [
+                        'h', 'hk'
+                    ],
+                    'sub': [
+                        {
+                            'name': 'method',
+                            'args': 1,
+                            'info': 'hook java methods',
+                            'shortcuts': ['m', 'met', 'md', 'meth']
+                        },
+                        {
+                            'name': 'constructor',
+                            'args': 1,
+                            'info': 'hook java constructors',
+                            'shortcuts': ['c', 'ctor', 'constr', 'con']
+                        }
+                    ]
+                }
+            ]
+        }
+
+
 class Memory(Command):
     def get_command_info(self):
         return {
